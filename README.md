@@ -317,6 +317,10 @@ Implement an optional score decay model where interactions older than a configur
 
 ### 🌉 Cross-Chain Reputation Bridging
 Explore bridges to import reputation signals from other blockchains (Ethereum ENS scores, Lens Protocol, etc.) via Stellar-compatible oracles, creating a unified multi-chain reputation identity for power users.
+## Contract Details:
+Contract ID:CA6QNK6HR7NOYC2MF6NUWBWMV4MXE4LKADVWVALSHZ3GRZ3BM52WFXDF 
+<img width="1799" height="880" alt="image" src="https://github.com/user-attachments/assets/d14b3eea-c667-4b76-be8e-37dea77a4ae0" />
+
 
 ---
 
