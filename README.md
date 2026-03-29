@@ -17,6 +17,7 @@
 
 - [Project Title](#-wallet-reputation-graph)
 - [Project Description](#-project-description)
+- [Product Showcase](#-product-showcase)
 - [Project Vision](#-project-vision)
 - [Key Features](#-key-features)
 - [Smart Contract Architecture](#-smart-contract-architecture)
@@ -41,6 +42,45 @@
 Every interaction — registration, endorsement, or report — is permanently logged on-chain with a timestamp and a human-readable reason. Reputation scores are calculated deterministically from on-chain data: each endorsement adds **+1** point and each negative report deducts **−3** points, creating a weighted signal where bad behaviour has a meaningfully higher impact than isolated endorsements.
 
 The contract exposes a clean, minimal API of **4 core functions** (plus 2 view helpers), making it easy to integrate into wallets, dApps, DEXes, and DeFi protocols that need a trust signal before executing high-value transactions.
+
+---
+
+## 📸 Product Showcase
+
+The application pairs the Soroban smart contract with a clean frontend so users can explore wallet reputation, submit trust signals, and inspect credibility at a glance.
+
+### Landing Page
+
+<div align="center">
+  <img width="1239" height="841" alt="Wallet Reputation Graph landing page" src="https://github.com/user-attachments/assets/698e88be-383b-45ae-ad98-9b87d6513e37" />
+</div>
+
+The landing page introduces the protocol, highlights live ecosystem stats, and guides new users into connecting their wallet and joining the reputation network.
+
+### Dashboard Overview
+
+<div align="center">
+  <img width="767" height="830" alt="Wallet Reputation Graph dashboard overview" src="https://github.com/user-attachments/assets/4152618f-8cea-4001-ad71-9dd8ca5c5f69" />
+</div>
+
+The dashboard is the main control center. From here, users can register a wallet, search any profile by wallet ID or Stellar address, and inspect current reputation metrics in one place.
+
+### Trust Actions: Endorse or Report
+
+<div align="center">
+  <img width="792" height="733" alt="Wallet dashboard actions for endorsing or reporting a project" src="https://github.com/user-attachments/assets/e4b97e6d-b7a6-4536-9d03-5fffdedb068b" />
+</div>
+
+- **Endorse a wallet:** submit a positive trust signal for reliable behavior. Each endorsement adds **+1** to the wallet score.
+- **Report a project or wallet:** flag suspicious or malicious activity so the community can react early. Each report deducts **−3** from the wallet score.
+
+### Credibility View
+
+<div align="center">
+  <img width="772" height="788" alt="Wallet credibility and reputation view" src="https://github.com/user-attachments/assets/a4de4195-ac54-4500-a094-064c2ff735f5" />
+</div>
+
+This view helps users quickly evaluate whether a wallet looks credible by surfacing its score, endorsement count, report count, and overall trust posture in an easy-to-read format.
 
 ---
 
