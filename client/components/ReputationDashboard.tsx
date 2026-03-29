@@ -1,0 +1,851 @@
+"use client";
+
+import { useState, useCallback, useEffect, useRef } from "react";
+import { animate } from "animejs";
+import {
+  registerWallet,
+  endorseWallet,
+  reportWallet,
+  viewWalletReputation,
+  viewGlobalStats,
+  viewInteractionLog,
+  getWalletIdByAddress,
+  viewWalletHistory,
+  CONTRACT_ADDRESS,
+} from "@/hooks/contract";
+
+// ── Types ────────────────────────────────────────────────────
+
+interface ReputationRecord {
+  wallet_id: number;
+  score: number;
+  endorsement_count: number;
+  report_count: number;
+  last_updated: number;
+  is_active: boolean;
+}
+
+interface InteractionLog {
+  log_id: number;
+  target_wallet_id: number;
+  is_endorsement: boolean;
+  reason: string;
+  timestamp: number;
+}
+
+interface GlobalStats {
+  total_wallets: number;
+  total_endorsements: number;
+  total_reports: number;
+}
+
+// ── Icons ────────────────────────────────────────────────────
+
+function SpinnerIcon() {
+  return (
+    <svg className="animate-spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+      <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+    </svg>
+  );
+}
+
+function SearchIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="11" cy="11" r="8" />
+      <path d="m21 21-4.3-4.3" />
+    </svg>
+  );
+}
+
+function UserPlusIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+      <circle cx="9" cy="7" r="4" />
+      <line x1="19" y1="8" x2="19" y2="14" />
+      <line x1="22" y1="11" x2="16" y2="11" />
+    </svg>
+  );
+}
+
+function ThumbsUpIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M7 10v12" />
+      <path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z" />
+    </svg>
+  );
+}
+
+function FlagIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
+      <line x1="4" y1="22" x2="4" y2="15" />
+    </svg>
+  );
+}
+
+function CheckIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="20 6 9 17 4 12" />
+    </svg>
+  );
+}
+
+function GraphIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="5" r="3" />
+      <circle cx="5" cy="19" r="3" />
+      <circle cx="19" cy="19" r="3" />
+      <line x1="12" y1="8" x2="5" y2="16" />
+      <line x1="12" y1="8" x2="19" y2="16" />
+    </svg>
+  );
+}
+
+function AlertIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <line x1="12" y1="8" x2="12" y2="12" />
+      <line x1="12" y1="16" x2="12.01" y2="16" />
+    </svg>
+  );
+}
+
+function ScrollIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M8 21h12a2 2 0 0 0 2-2v-2H10v2a2 2 0 1 1-4 0V5a2 2 0 1 0-4 0v3h4" />
+      <path d="M19 17V5a2 2 0 0 0-2-2H4" />
+    </svg>
+  );
+}
+
+// ── Score Bar Component ──────────────────────────────────────
+
+function ScoreBar({ score, endorsements, reports }: { score: number; endorsements: number; reports: number }) {
+  const scoreRef = useRef<HTMLSpanElement>(null);
+  const barRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (scoreRef.current) {
+      const obj = { val: 0 };
+      animate(obj, {
+        val: score,
+        round: 1,
+        duration: 1200,
+        easing: "easeOutExpo",
+        onUpdate: () => {
+          if (scoreRef.current) scoreRef.current.textContent = String(Math.round(obj.val));
+        },
+      });
+    }
+    if (barRef.current) {
+      animate(barRef.current, {
+        width: [`0%`, `${Math.min(Math.abs(score) * 5, 100)}%`],
+        duration: 1000,
+        easing: "easeOutExpo",
+        delay: 300,
+      });
+    }
+  }, [score]);
+
+  const scoreColor = score > 0 ? "var(--forest)" : score < 0 ? "var(--terra)" : "var(--amber-sap)";
+  const scoreLabel = score > 0 ? "Trusted" : score < 0 ? "Flagged" : "Neutral";
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-end justify-between">
+        <div>
+          <p className="text-xs text-[var(--stone)] mb-1">Reputation Score</p>
+          <div className="flex items-baseline gap-2">
+            <span
+              ref={scoreRef}
+              className="text-4xl font-heading font-bold animate-score-glow"
+              style={{ color: scoreColor }}
+            >
+              {score}
+            </span>
+            <span
+              className="text-sm font-semibold px-2 py-0.5 rounded-full"
+              style={{
+                color: scoreColor,
+                background: `${scoreColor}15`,
+              }}
+            >
+              {scoreLabel}
+            </span>
+          </div>
+        </div>
+        <div className="text-right space-y-1">
+          <div className="flex items-center gap-2 justify-end">
+            <span className="text-xs text-[var(--stone)]">Endorsements</span>
+            <span className="font-mono-data text-sm font-semibold text-[var(--forest)]">+{endorsements}</span>
+          </div>
+          <div className="flex items-center gap-2 justify-end">
+            <span className="text-xs text-[var(--stone)]">Reports</span>
+            <span className="font-mono-data text-sm font-semibold text-[var(--terra)]">−{reports}</span>
+          </div>
+        </div>
+      </div>
+      <div className="h-2 rounded-full bg-[var(--parchment)] overflow-hidden">
+        <div
+          ref={barRef}
+          className="h-full rounded-full transition-colors"
+          style={{
+            background: `linear-gradient(90deg, ${scoreColor}, ${scoreColor}88)`,
+            width: "0%",
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
+// ── Comment Item Component ──────────────────────────────────────
+
+function CommentItem({ log }: { log: InteractionLog }) {
+  const isEndorsement = log.is_endorsement;
+  const color = isEndorsement ? "var(--forest)" : "var(--terra)";
+  const bgColor = isEndorsement ? "rgba(75, 110, 72, 0.08)" : "rgba(160, 82, 45, 0.08)";
+  
+  const formatDate = (timestamp: number) => {
+    if (timestamp === 0) return "Unknown";
+    const date = new Date(timestamp * 1000);
+    return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  };
+
+  return (
+    <div 
+      className="rounded-lg p-4 border animate-fade-in-up"
+      style={{ 
+        background: bgColor, 
+        borderColor: `${color}20` 
+      }}
+    >
+      <div className="flex items-start gap-3">
+        <div 
+          className="flex items-center justify-center w-8 h-8 rounded-full shrink-0"
+          style={{ background: `${color}15`, color }}
+        >
+          {isEndorsement ? (
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <path d="M7 10v12" />
+              <path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z" />
+            </svg>
+          ) : (
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
+              <line x1="4" y1="22" x2="4" y2="15" />
+            </svg>
+          )}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1">
+            <span 
+              className="text-xs font-semibold uppercase tracking-wider"
+              style={{ color }}
+            >
+              {isEndorsement ? "Endorsement" : "Report"}
+            </span>
+            <span className="text-[10px] text-[var(--stone)] font-mono-data">
+              #{log.log_id}
+            </span>
+          </div>
+          <p className="text-sm text-[var(--dark-ink)] leading-relaxed">
+            "{log.reason}"
+          </p>
+          <p className="text-[10px] text-[var(--stone)] mt-2 font-mono-data">
+            {formatDate(log.timestamp)} · Ledger #{log.timestamp}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Ink Ripple Handler ───────────────────────────────────────
+
+function createInkRipple(e: React.MouseEvent<HTMLButtonElement>) {
+  const btn = e.currentTarget;
+  const rect = btn.getBoundingClientRect();
+  const ripple = document.createElement("span");
+  ripple.className = "ink-ripple";
+  const size = Math.max(rect.width, rect.height);
+  ripple.style.width = ripple.style.height = `${size}px`;
+  ripple.style.left = `${e.clientX - rect.left - size / 2}px`;
+  ripple.style.top = `${e.clientY - rect.top - size / 2}px`;
+  btn.appendChild(ripple);
+  setTimeout(() => ripple.remove(), 600);
+}
+
+// ── Main Component ───────────────────────────────────────────
+
+type Tab = "lookup" | "register" | "endorse" | "report";
+
+interface Props {
+  walletAddress: string | null;
+  onConnect: () => void;
+  isConnecting: boolean;
+}
+
+export default function ReputationDashboard({ walletAddress, onConnect, isConnecting }: Props) {
+  const [activeTab, setActiveTab] = useState<Tab>("lookup");
+  const [error, setError] = useState<string | null>(null);
+  const [txStatus, setTxStatus] = useState<string | null>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  // Lookup state
+  const [lookupInput, setLookupInput] = useState("");
+  const [isLooking, setIsLooking] = useState(false);
+  const [reputation, setReputation] = useState<ReputationRecord | null>(null);
+  const [walletHistory, setWalletHistory] = useState<InteractionLog[]>([]);
+  const [showComments, setShowComments] = useState(false);
+
+  // Register state
+  const [isRegistering, setIsRegistering] = useState(false);
+  const [registeredId, setRegisteredId] = useState<number | null>(null);
+
+  // Endorse state
+  const [endorseId, setEndorseId] = useState("");
+  const [endorseReason, setEndorseReason] = useState("");
+  const [isEndorsing, setIsEndorsing] = useState(false);
+
+  // Report state  
+  const [reportId, setReportId] = useState("");
+  const [reportReason, setReportReason] = useState("");
+  const [isReporting, setIsReporting] = useState(false);
+
+  // Stagger-in animation on mount
+  useEffect(() => {
+    if (cardRef.current) {
+      animate(cardRef.current, {
+        translateY: [30, 0],
+        opacity: [0, 1],
+        duration: 800,
+        easing: "easeOutCubic",
+        delay: 200,
+      });
+    }
+  }, []);
+
+  // Tab change animation
+  useEffect(() => {
+    if (cardRef.current) {
+      const inner = cardRef.current.querySelector(".tab-content");
+      if (inner) {
+        animate(inner, {
+          opacity: [0, 1],
+          translateY: [12, 0],
+          duration: 400,
+          easing: "easeOutCubic",
+        });
+      }
+    }
+  }, [activeTab]);
+
+  const truncate = (addr: string) => `${addr.slice(0, 8)}…${addr.slice(-6)}`;
+  const isStellarAddress = (input: string) => input.startsWith("G") && input.length > 20;
+
+  // ── Handlers ───────────────────────────────────────────────
+
+  const handleLookup = useCallback(async () => {
+    if (!lookupInput.trim()) return setError("Enter a wallet ID or Stellar address");
+    
+    setError(null);
+    setIsLooking(true);
+    setReputation(null);
+    setWalletHistory([]);
+    setShowComments(false);
+
+    try {
+      let walletId: number;
+      const input = lookupInput.trim();
+
+      if (isStellarAddress(input)) {
+        // It's a Stellar address - look up the wallet ID
+        const result = await getWalletIdByAddress(input, walletAddress || undefined);
+        if (result && typeof result === "object" && "value" in result) {
+          walletId = Number(result.value);
+        } else if (typeof result === "number") {
+          walletId = result;
+        } else if (result && typeof result === "object") {
+          const resultObj = result as Record<string, unknown>;
+          walletId = Number(resultObj.value ?? resultObj);
+        } else {
+          walletId = 0;
+        }
+        
+        if (walletId === 0) {
+          setError("This wallet address is not registered yet.");
+          setIsLooking(false);
+          return;
+        }
+      } else {
+        // It's a numeric wallet ID
+        walletId = parseInt(input);
+        if (isNaN(walletId) || walletId < 1) {
+          setError("Wallet ID must be a positive number");
+          setIsLooking(false);
+          return;
+        }
+      }
+
+      const result = await viewWalletReputation(walletId, walletAddress || undefined);
+      if (result && typeof result === "object") {
+        const resultObj = result as Record<string, unknown>;
+        const rec: ReputationRecord = {
+          wallet_id: Number(resultObj.wallet_id ?? walletId),
+          score: Number(resultObj.score ?? 0),
+          endorsement_count: Number(resultObj.endorsement_count ?? 0),
+          report_count: Number(resultObj.report_count ?? 0),
+          last_updated: Number(resultObj.last_updated ?? 0),
+          is_active: Boolean(resultObj.is_active),
+        };
+        setReputation(rec);
+
+        // Fetch wallet history (comments)
+        try {
+          const historyResult = await viewWalletHistory(walletId, walletAddress || undefined);
+          if (historyResult && Array.isArray(historyResult)) {
+            const logs: InteractionLog[] = historyResult.map((h: unknown) => {
+              const obj = h as Record<string, unknown>;
+              return {
+                log_id: Number(obj.log_id ?? 0),
+                target_wallet_id: Number(obj.target_wallet_id ?? 0),
+                is_endorsement: Boolean(obj.is_endorsement ?? false),
+                reason: String(obj.reason ?? ""),
+                timestamp: Number(obj.timestamp ?? 0),
+              };
+            });
+            setWalletHistory(logs.reverse()); // Newest first
+          }
+        } catch {
+          // History not available
+        }
+      } else {
+        setError("Wallet not found or not registered");
+      }
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Query failed");
+    } finally {
+      setIsLooking(false);
+    }
+  }, [lookupInput, walletAddress]);
+
+  const handleRegister = useCallback(async (e: React.MouseEvent<HTMLButtonElement>) => {
+    if (!walletAddress) return setError("Connect wallet first");
+    createInkRipple(e);
+    setError(null);
+    setIsRegistering(true);
+    setTxStatus("Awaiting signature…");
+    setRegisteredId(null);
+    try {
+      await registerWallet(walletAddress);
+      // Get the wallet ID for this address
+      const walletIdResult = await getWalletIdByAddress(walletAddress, walletAddress);
+      let walletId: number | null = null;
+      if (walletIdResult && typeof walletIdResult === "object" && "value" in walletIdResult) {
+        walletId = Number(walletIdResult.value);
+      } else if (typeof walletIdResult === "number") {
+        walletId = walletIdResult;
+      } else if (walletIdResult && typeof walletIdResult === "object") {
+        const resultObj = walletIdResult as Record<string, unknown>;
+        walletId = Number(resultObj.value ?? resultObj);
+      }
+      
+      if (walletId && walletId > 0) {
+        setRegisteredId(walletId);
+        setTxStatus("Wallet registered on-chain!");
+      } else {
+        setTxStatus("Registration completed!");
+      }
+      setTimeout(() => setTxStatus(null), 6000);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Registration failed");
+      setTxStatus(null);
+    } finally {
+      setIsRegistering(false);
+    }
+  }, [walletAddress]);
+
+  const handleEndorse = useCallback(async (e: React.MouseEvent<HTMLButtonElement>) => {
+    if (!walletAddress) return setError("Connect wallet first");
+    if (!endorseId.trim() || !endorseReason.trim()) return setError("Fill in all fields");
+    const id = parseInt(endorseId.trim());
+    if (isNaN(id) || id < 1) return setError("Wallet ID must be a positive number");
+    createInkRipple(e);
+    setError(null);
+    setIsEndorsing(true);
+    setTxStatus("Verifying wallet…");
+    try {
+      const rep = await viewWalletReputation(id, walletAddress) as unknown as Record<string, unknown>;
+      if (!rep || !rep.is_active || Number(rep.wallet_id) === 0) {
+        throw new Error(`Target wallet ID ${id} does not exist or is inactive.`);
+      }
+
+      setTxStatus("Awaiting signature…");
+      await endorseWallet(walletAddress, id, endorseReason.trim());
+      setTxStatus("Endorsement recorded on-chain! (+1 score)");
+      setEndorseId("");
+      setEndorseReason("");
+      setTimeout(() => setTxStatus(null), 6000);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Endorsement failed");
+      setTxStatus(null);
+    } finally {
+      setIsEndorsing(false);
+    }
+  }, [walletAddress, endorseId, endorseReason]);
+
+  const handleReport = useCallback(async (e: React.MouseEvent<HTMLButtonElement>) => {
+    if (!walletAddress) return setError("Connect wallet first");
+    if (!reportId.trim() || !reportReason.trim()) return setError("Fill in all fields");
+    const id = parseInt(reportId.trim());
+    if (isNaN(id) || id < 1) return setError("Wallet ID must be a positive number");
+    createInkRipple(e);
+    setError(null);
+    setIsReporting(true);
+    setTxStatus("Verifying wallet…");
+    try {
+      const rep = await viewWalletReputation(id, walletAddress) as unknown as Record<string, unknown>;
+      if (!rep || !rep.is_active || Number(rep.wallet_id) === 0) {
+        throw new Error(`Target wallet ID ${id} does not exist or is inactive.`);
+      }
+
+      setTxStatus("Awaiting signature…");
+      await reportWallet(walletAddress, id, reportReason.trim());
+      setTxStatus("Report submitted on-chain! (−3 score)");
+      setReportId("");
+      setReportReason("");
+      setTimeout(() => setTxStatus(null), 6000);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Report failed");
+      setTxStatus(null);
+    } finally {
+      setIsReporting(false);
+    }
+  }, [walletAddress, reportId, reportReason]);
+
+  // ── Tab config ─────────────────────────────────────────────
+
+  const tabs: { key: Tab; label: string; icon: React.ReactNode; color: string }[] = [
+    { key: "lookup", label: "Lookup", icon: <SearchIcon />, color: "var(--sage)" },
+    { key: "register", label: "Register", icon: <UserPlusIcon />, color: "var(--forest)" },
+    { key: "endorse", label: "Endorse", icon: <ThumbsUpIcon />, color: "var(--moss)" },
+    { key: "report", label: "Report", icon: <FlagIcon />, color: "var(--terra)" },
+  ];
+
+  return (
+    <div ref={cardRef} className="w-full max-w-2xl" style={{ opacity: 0 }}>
+      {/* Toast: Error */}
+      {error && (
+        <div className="mb-4 flex items-start gap-3 rounded-xl border border-[var(--terra)]/20 bg-[var(--terra)]/5 px-4 py-3 animate-slide-down">
+          <span className="mt-0.5 text-[var(--terra)]"><AlertIcon /></span>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-[var(--terra)]">Error</p>
+            <p className="text-xs text-[var(--terra)]/70 mt-0.5 break-all">{error}</p>
+          </div>
+          <button onClick={() => setError(null)} className="shrink-0 text-[var(--terra)]/40 hover:text-[var(--terra)] text-lg leading-none cursor-pointer">&times;</button>
+        </div>
+      )}
+
+      {/* Toast: Success */}
+      {txStatus && (
+        <div className="mb-4 flex items-center gap-3 rounded-xl border border-[var(--forest)]/20 bg-[var(--forest)]/5 px-4 py-3 animate-slide-down">
+          <span className="text-[var(--forest)]">
+            {txStatus.includes("on-chain") ? <CheckIcon /> : <SpinnerIcon />}
+          </span>
+          <span className="text-sm text-[var(--forest)] font-medium">{txStatus}</span>
+        </div>
+      )}
+
+      {/* Main Card */}
+      <div className="card-botanical overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-[var(--faded-sage)] px-6 py-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-[var(--forest)]/15 to-[var(--sage)]/15 border border-[var(--faded-sage)]">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--forest)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <path d="M12 6v6l4 2" />
+              </svg>
+            </div>
+            <div>
+              <h3 className="text-sm font-heading font-bold text-[var(--dark-ink)]">Reputation Explorer</h3>
+              <p className="text-[10px] text-[var(--stone)] font-mono-data mt-0.5">{truncate(CONTRACT_ADDRESS)}</p>
+            </div>
+          </div>
+          <span className="badge badge-sage">Soroban</span>
+        </div>
+
+        {/* Tabs */}
+        <div className="flex border-b border-[var(--faded-sage)] px-2">
+          {tabs.map((t) => (
+            <button
+              key={t.key}
+              onClick={() => { setActiveTab(t.key); setError(null); setReputation(null); setRegisteredId(null); setWalletHistory([]); setShowComments(false); }}
+              className={`relative flex items-center gap-2 px-5 py-3.5 text-sm font-semibold transition-all cursor-pointer ${
+                activeTab === t.key
+                  ? "text-[var(--dark-ink)]"
+                  : "text-[var(--stone)] hover:text-[var(--dark-ink)]/70"
+              }`}
+            >
+              <span style={activeTab === t.key ? { color: t.color } : undefined}>{t.icon}</span>
+              <span className="hidden sm:inline">{t.label}</span>
+              {activeTab === t.key && (
+                <span
+                  className="absolute bottom-0 left-2 right-2 h-[2px] rounded-full"
+                  style={{ background: t.color }}
+                />
+              )}
+            </button>
+          ))}
+        </div>
+
+        {/* Tab Content */}
+        <div className="p-6 tab-content">
+          {/* ── LOOKUP ── */}
+          {activeTab === "lookup" && (
+            <div className="space-y-5">
+              <div className="flex items-center gap-2 rounded-xl bg-[var(--parchment)] px-4 py-3 font-mono-data text-sm border border-[var(--faded-sage)]">
+                <span className="font-semibold text-[var(--sage)]">fn</span>
+                <span className="text-[var(--dark-ink)]/80">view_wallet_reputation</span>
+                <span className="text-[var(--stone)] text-xs">(wallet_id: u64 | address: String)</span>
+                <span className="ml-auto text-[var(--stone)] text-[10px]">→ ReputationRecord</span>
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-[11px] font-semibold uppercase tracking-wider text-[var(--stone)]">
+                  Wallet ID or Stellar Address
+                </label>
+                <input
+                  className="input-botanical"
+                  value={lookupInput}
+                  onChange={(e) => setLookupInput(e.target.value)}
+                  placeholder="e.g. GABC123... or 1"
+                  type="text"
+                />
+                <p className="text-[10px] text-[var(--stone)]/60">
+                  Enter either a Stellar wallet address (starts with G) or a numeric wallet ID
+                </p>
+              </div>
+
+              <button onClick={handleLookup} disabled={isLooking} className="btn-forest w-full cursor-pointer">
+                {isLooking ? <><SpinnerIcon /> Querying…</> : <><SearchIcon /> Lookup Reputation</>}
+              </button>
+
+              {reputation && (
+                <div className="rounded-xl border border-[var(--faded-sage)] bg-[var(--parchment)] overflow-hidden animate-fade-in-up">
+                  <div className="border-b border-[var(--faded-sage)] px-4 py-3 flex items-center justify-between">
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--stone)]">Wallet #{reputation.wallet_id}</span>
+                    <span className={`badge ${reputation.is_active ? "badge-forest" : "badge-terra"}`}>
+                      <span className={`h-1.5 w-1.5 rounded-full ${reputation.is_active ? "bg-[var(--forest)]" : "bg-[var(--terra)]"}`} />
+                      {reputation.is_active ? "Active" : "Inactive"}
+                    </span>
+                  </div>
+                  <div className="p-5">
+                    <ScoreBar
+                      score={reputation.score}
+                      endorsements={reputation.endorsement_count}
+                      reports={reputation.report_count}
+                    />
+                    <div className="mt-4 pt-4 border-t border-[var(--faded-sage)] flex items-center justify-between">
+                      <span className="text-xs text-[var(--stone)]">Last Updated</span>
+                      <span className="font-mono-data text-xs text-[var(--dark-ink)]/60">Ledger #{reputation.last_updated}</span>
+                    </div>
+
+                    {walletHistory.length > 0 && (
+                      <div className="mt-5 pt-4 border-t border-[var(--faded-sage)]">
+                        <a
+                          href={`/graph?id=${reputation.wallet_id}`}
+                          className="flex items-center justify-center gap-2 w-full py-3 rounded-xl border-2 border-dashed border-[var(--faded-sage)] text-sm font-semibold text-[var(--forest)] hover:bg-[var(--forest)]/5 hover:border-[var(--forest)]/40 transition-all"
+                        >
+                          <GraphIcon />
+                          View Network Graph
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── REGISTER ── */}
+          {activeTab === "register" && (
+            <div className="space-y-5">
+              <div className="flex items-center gap-2 rounded-xl bg-[var(--parchment)] px-4 py-3 font-mono-data text-sm border border-[var(--faded-sage)]">
+                <span className="font-semibold text-[var(--forest)]">fn</span>
+                <span className="text-[var(--dark-ink)]/80">register_wallet</span>
+                <span className="text-[var(--stone)] text-xs">(address: String)</span>
+                <span className="ml-auto text-[var(--stone)] text-[10px]">→ wallet_id: u64</span>
+              </div>
+
+              <div className="rounded-xl bg-[var(--parchment)] border border-[var(--faded-sage)] p-5 text-center space-y-3">
+                <div className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--forest)]/10 border border-[var(--forest)]/20">
+                  <UserPlusIcon />
+                </div>
+                <p className="text-sm text-[var(--dark-ink)]/80 max-w-sm mx-auto leading-relaxed">
+                  Register your wallet on the Stellar blockchain. Your wallet address maps to a unique <span className="font-mono-data font-semibold">wallet_id</span> that others can use to endorse or report your reputation.
+                </p>
+                <div className="flex items-center justify-center gap-2 text-xs text-[var(--stone)]">
+                  <span className="h-2 w-2 rounded-full bg-[var(--forest)] animate-pulse" />
+                  Same address always = same ID
+                </div>
+              </div>
+
+              {registeredId !== null && (
+                <div className="rounded-xl bg-[var(--forest)]/5 border border-[var(--forest)]/20 p-4 text-center animate-fade-in-up">
+                  <p className="text-xs text-[var(--stone)] mb-1">Your Wallet ID</p>
+                  <p className="text-3xl font-heading font-bold text-[var(--forest)]">{registeredId}</p>
+                  <p className="text-xs text-[var(--stone)] mt-2">This ID is permanently linked to your wallet address.</p>
+                </div>
+              )}
+
+              {walletAddress ? (
+                <button onClick={handleRegister} disabled={isRegistering} className="btn-forest w-full cursor-pointer">
+                  {isRegistering ? <><SpinnerIcon /> Registering…</> : <><UserPlusIcon /> Register My Wallet</>}
+                </button>
+              ) : (
+                <button onClick={onConnect} disabled={isConnecting} className="btn-outline w-full cursor-pointer">
+                  Connect wallet to register
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* ── ENDORSE ── */}
+          {activeTab === "endorse" && (
+            <div className="space-y-5">
+              <div className="flex items-center gap-2 rounded-xl bg-[var(--parchment)] px-4 py-3 font-mono-data text-sm border border-[var(--faded-sage)]">
+                <span className="font-semibold text-[var(--moss)]">fn</span>
+                <span className="text-[var(--dark-ink)]/80">endorse_wallet</span>
+                <span className="text-[var(--stone)] text-xs">(target_wallet_id: u64, reason: String)</span>
+                <span className="ml-auto text-[var(--stone)] text-[10px]">→ log_id</span>
+              </div>
+
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-[var(--stone)]">
+                    Wallet ID to Endorse
+                  </label>
+                  <input
+                    className="input-botanical"
+                    value={endorseId}
+                    onChange={(e) => setEndorseId(e.target.value)}
+                    placeholder="e.g. 1"
+                    type="number"
+                    min="1"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-[var(--stone)]">
+                    Reason / Comment
+                  </label>
+                  <textarea
+                    className="textarea-botanical"
+                    value={endorseReason}
+                    onChange={(e) => setEndorseReason(e.target.value)}
+                    placeholder="e.g. Delivered on a P2P trade promptly and honestly."
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 rounded-lg bg-[var(--forest)]/5 border border-[var(--forest)]/15 px-3 py-2">
+                <ThumbsUpIcon />
+                <span className="text-xs text-[var(--forest)]">Each endorsement adds <span className="font-mono-data font-bold">+1</span> to the wallet&apos;s score</span>
+              </div>
+
+              {walletAddress ? (
+                <button onClick={handleEndorse} disabled={isEndorsing} className="btn-forest w-full cursor-pointer">
+                  {isEndorsing ? <><SpinnerIcon /> Endorsing…</> : <><ThumbsUpIcon /> Submit Endorsement</>}
+                </button>
+              ) : (
+                <button onClick={onConnect} disabled={isConnecting} className="btn-outline w-full cursor-pointer">
+                  Connect wallet to endorse
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* ── REPORT ── */}
+          {activeTab === "report" && (
+            <div className="space-y-5">
+              <div className="flex items-center gap-2 rounded-xl bg-[var(--parchment)] px-4 py-3 font-mono-data text-sm border border-[var(--faded-sage)]">
+                <span className="font-semibold text-[var(--terra)]">fn</span>
+                <span className="text-[var(--dark-ink)]/80">report_wallet</span>
+                <span className="text-[var(--stone)] text-xs">(target_wallet_id: u64, reason: String)</span>
+                <span className="ml-auto text-[var(--stone)] text-[10px]">→ log_id</span>
+              </div>
+
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-[var(--stone)]">
+                    Wallet ID to Report
+                  </label>
+                  <input
+                    className="input-botanical"
+                    value={reportId}
+                    onChange={(e) => setReportId(e.target.value)}
+                    placeholder="e.g. 2"
+                    type="number"
+                    min="1"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-[var(--stone)]">
+                    Reason / Comment
+                  </label>
+                  <textarea
+                    className="textarea-botanical"
+                    value={reportReason}
+                    onChange={(e) => setReportReason(e.target.value)}
+                    placeholder="e.g. Failed to send funds after trade was agreed upon."
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 rounded-lg bg-[var(--terra)]/5 border border-[var(--terra)]/15 px-3 py-2">
+                <FlagIcon />
+                <span className="text-xs text-[var(--terra)]">Each report deducts <span className="font-mono-data font-bold">−3</span> from the wallet&apos;s score</span>
+              </div>
+
+              {walletAddress ? (
+                <button onClick={handleReport} disabled={isReporting} className="btn-terra w-full cursor-pointer">
+                  {isReporting ? <><SpinnerIcon /> Reporting…</> : <><FlagIcon /> Submit Report</>}
+                </button>
+              ) : (
+                <button onClick={onConnect} disabled={isConnecting} className="btn-outline w-full cursor-pointer">
+                  Connect wallet to report
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="border-t border-[var(--faded-sage)] px-6 py-3 flex items-center justify-between">
+          <p className="text-[10px] text-[var(--stone)]">Wallet Reputation Graph · Soroban</p>
+          <div className="flex items-center gap-3 text-[10px] text-[var(--stone)]">
+            <span className="flex items-center gap-1">
+              <span className="h-1.5 w-1.5 rounded-full bg-[var(--forest)]" />
+              +1 Endorse
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="h-1.5 w-1.5 rounded-full bg-[var(--terra)]" />
+              −3 Report
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

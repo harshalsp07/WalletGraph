@@ -2,7 +2,7 @@
 #![no_std]
 
 use soroban_sdk::{
-    contract, contractimpl, contracttype, log, symbol_short, Env, String, Symbol,
+    contract, contractimpl, contracttype, log, symbol_short, Env, String, Symbol, Vec,
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -13,21 +13,21 @@ use soroban_sdk::{
 #[contracttype]
 #[derive(Clone)]
 pub struct GlobalStats {
-    pub total_wallets: u64,    // Total unique wallets registered
+    pub total_wallets: u64,      // Total unique wallets registered
     pub total_endorsements: u64, // Total endorsements ever submitted
-    pub total_reports: u64,    // Total negative reports ever submitted
+    pub total_reports: u64,      // Total negative reports ever submitted
 }
 
 /// On-chain reputation record for a single wallet address (keyed by wallet_id).
 #[contracttype]
 #[derive(Clone)]
 pub struct ReputationRecord {
-    pub wallet_id: u64,           // Internal numeric ID of the wallet
-    pub score: i64,               // Net reputation score  (endorsements – reports × REPORT_WEIGHT)
-    pub endorsement_count: u64,   // Cumulative endorsements received
-    pub report_count: u64,        // Cumulative negative reports received
-    pub last_updated: u64,        // Ledger timestamp of last interaction
-    pub is_active: bool,          // Whether this wallet entry is active
+    pub wallet_id: u64,         // Internal numeric ID of the wallet
+    pub score: i64,             // Net reputation score  (endorsements – reports × REPORT_WEIGHT)
+    pub endorsement_count: u64, // Cumulative endorsements received
+    pub report_count: u64,      // Cumulative negative reports received
+    pub last_updated: u64,      // Ledger timestamp of last interaction
+    pub is_active: bool,        // Whether this wallet entry is active
 }
 
 /// An individual endorsement or report event, stored per submission.
@@ -64,6 +64,18 @@ pub enum LogBook {
     Log(u64), // keyed by log_id
 }
 
+/// Enum used to construct composite storage keys for address-to-ID mapping.
+#[contracttype]
+pub enum AddressBook {
+    Address(String), // keyed by wallet address string
+}
+
+/// Enum for tracking all log IDs for a specific wallet (for history viewing).
+#[contracttype]
+pub enum WalletLogs {
+    WalletLogIds(u64), // stores Vec<u64> of log_ids for a wallet_id
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 //  CONSTANTS
 // ─────────────────────────────────────────────────────────────────────────────
@@ -87,15 +99,19 @@ impl WalletReputationGraph {
     // ─────────────────────────────────────────────────────────────────────────
     //  FUNCTION 1 – register_wallet
     //  Registers a new wallet on the reputation graph and returns its
-    //  auto-generated wallet_id.  Panics if the wallet count would overflow.
+    //  auto-generated wallet_id. If the wallet address is already registered,
+    //  returns the existing wallet_id. Panics if the wallet count would overflow.
     // ─────────────────────────────────────────────────────────────────────────
-    pub fn register_wallet(env: Env) -> u64 {
+    pub fn register_wallet(env: Env, address: String) -> u64 {
+        // Check if address is already registered
+        let existing_id = Self::get_wallet_id_by_address(env.clone(), address.clone());
+        if existing_id > 0 {
+            log!(&env, "Wallet already registered with ID: {}", existing_id);
+            return existing_id;
+        }
+
         // Fetch (or initialise) the running wallet counter.
-        let mut count_wallet: u64 = env
-            .storage()
-            .instance()
-            .get(&COUNT_WALLET)
-            .unwrap_or(0_u64);
+        let mut count_wallet: u64 = env.storage().instance().get(&COUNT_WALLET).unwrap_or(0_u64);
 
         count_wallet += 1;
 
@@ -119,17 +135,28 @@ impl WalletReputationGraph {
         env.storage()
             .instance()
             .set(&WalletBook::Wallet(count_wallet), &record);
+        env.storage()
+            .instance()
+            .set(&AddressBook::Address(address), &count_wallet);
         env.storage().instance().set(&COUNT_WALLET, &count_wallet);
         env.storage().instance().set(&GLOBAL_STATS, &stats);
         env.storage().instance().extend_ttl(TTL_EXTEND, TTL_EXTEND);
 
-        log!(
-            &env,
-            "New wallet registered. wallet_id = {}",
-            count_wallet
-        );
+        log!(&env, "New wallet registered. wallet_id = {}", count_wallet);
 
         count_wallet // return the newly assigned wallet_id
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    //  HELPER – get_wallet_id_by_address
+    //  Returns the wallet_id for a given wallet address.
+    //  Returns 0 if the address is not registered.
+    // ─────────────────────────────────────────────────────────────────────────
+    pub fn get_wallet_id_by_address(env: Env, address: String) -> u64 {
+        env.storage()
+            .instance()
+            .get(&AddressBook::Address(address))
+            .unwrap_or(0_u64)
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -142,7 +169,11 @@ impl WalletReputationGraph {
         let mut record = Self::view_wallet_reputation(env.clone(), target_wallet_id);
 
         if !record.is_active || record.wallet_id == 0 {
-            log!(&env, "Endorsement failed: wallet {} not found or inactive", target_wallet_id);
+            log!(
+                &env,
+                "Endorsement failed: wallet {} not found or inactive",
+                target_wallet_id
+            );
             panic!("Target wallet does not exist or is inactive.");
         }
 
@@ -154,11 +185,7 @@ impl WalletReputationGraph {
         record.last_updated = time;
 
         // Fetch and increment the log counter.
-        let mut count_log: u64 = env
-            .storage()
-            .instance()
-            .get(&COUNT_LOG)
-            .unwrap_or(0_u64);
+        let mut count_log: u64 = env.storage().instance().get(&COUNT_LOG).unwrap_or(0_u64);
         count_log += 1;
 
         // Build the interaction log entry.
@@ -185,6 +212,17 @@ impl WalletReputationGraph {
         env.storage().instance().set(&GLOBAL_STATS, &stats);
         env.storage().instance().extend_ttl(TTL_EXTEND, TTL_EXTEND);
 
+        // Also track this log_id in the wallet's history
+        let mut wallet_log_ids: Vec<u64> = env
+            .storage()
+            .instance()
+            .get(&WalletLogs::WalletLogIds(target_wallet_id))
+            .unwrap_or(Vec::new(&env));
+        wallet_log_ids.push_back(count_log);
+        env.storage()
+            .instance()
+            .set(&WalletLogs::WalletLogIds(target_wallet_id), &wallet_log_ids);
+
         log!(
             &env,
             "Wallet {} endorsed. New score = {}. log_id = {}",
@@ -207,7 +245,11 @@ impl WalletReputationGraph {
         let mut record = Self::view_wallet_reputation(env.clone(), target_wallet_id);
 
         if !record.is_active || record.wallet_id == 0 {
-            log!(&env, "Report failed: wallet {} not found or inactive", target_wallet_id);
+            log!(
+                &env,
+                "Report failed: wallet {} not found or inactive",
+                target_wallet_id
+            );
             panic!("Target wallet does not exist or is inactive.");
         }
 
@@ -219,11 +261,7 @@ impl WalletReputationGraph {
         record.last_updated = time;
 
         // Fetch and increment the log counter.
-        let mut count_log: u64 = env
-            .storage()
-            .instance()
-            .get(&COUNT_LOG)
-            .unwrap_or(0_u64);
+        let mut count_log: u64 = env.storage().instance().get(&COUNT_LOG).unwrap_or(0_u64);
         count_log += 1;
 
         // Build the interaction log entry.
@@ -250,6 +288,17 @@ impl WalletReputationGraph {
         env.storage().instance().set(&GLOBAL_STATS, &stats);
         env.storage().instance().extend_ttl(TTL_EXTEND, TTL_EXTEND);
 
+        // Also track this log_id in the wallet's history
+        let mut wallet_log_ids: Vec<u64> = env
+            .storage()
+            .instance()
+            .get(&WalletLogs::WalletLogIds(target_wallet_id))
+            .unwrap_or(Vec::new(&env));
+        wallet_log_ids.push_back(count_log);
+        env.storage()
+            .instance()
+            .set(&WalletLogs::WalletLogIds(target_wallet_id), &wallet_log_ids);
+
         log!(
             &env,
             "Wallet {} reported. New score = {}. log_id = {}",
@@ -269,14 +318,17 @@ impl WalletReputationGraph {
     // ─────────────────────────────────────────────────────────────────────────
     pub fn view_wallet_reputation(env: Env, wallet_id: u64) -> ReputationRecord {
         let key = WalletBook::Wallet(wallet_id);
-        env.storage().instance().get(&key).unwrap_or(ReputationRecord {
-            wallet_id: 0,
-            score: 0,
-            endorsement_count: 0,
-            report_count: 0,
-            last_updated: 0,
-            is_active: false,
-        })
+        env.storage()
+            .instance()
+            .get(&key)
+            .unwrap_or(ReputationRecord {
+                wallet_id: 0,
+                score: 0,
+                endorsement_count: 0,
+                report_count: 0,
+                last_updated: 0,
+                is_active: false,
+            })
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -302,12 +354,39 @@ impl WalletReputationGraph {
     // ─────────────────────────────────────────────────────────────────────────
     pub fn view_interaction_log(env: Env, log_id: u64) -> InteractionLog {
         let key = LogBook::Log(log_id);
-        env.storage().instance().get(&key).unwrap_or(InteractionLog {
-            log_id: 0,
-            target_wallet_id: 0,
-            is_endorsement: false,
-            reason: String::from_str(&env, "Not_Found"),
-            timestamp: 0,
-        })
+        env.storage()
+            .instance()
+            .get(&key)
+            .unwrap_or(InteractionLog {
+                log_id: 0,
+                target_wallet_id: 0,
+                is_endorsement: false,
+                reason: String::from_str(&env, "Not_Found"),
+                timestamp: 0,
+            })
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    //  HELPER – view_wallet_history   (read-only)
+    //  Returns all interaction logs for a given wallet_id.
+    //  Returns an empty vector if no interactions exist.
+    // ─────────────────────────────────────────────────────────────────────────
+    pub fn view_wallet_history(env: Env, wallet_id: u64) -> Vec<InteractionLog> {
+        let wallet_log_ids: Vec<u64> = env
+            .storage()
+            .instance()
+            .get(&WalletLogs::WalletLogIds(wallet_id))
+            .unwrap_or(Vec::new(&env));
+
+        let mut logs: Vec<InteractionLog> = Vec::new(&env);
+        for i in 0..wallet_log_ids.len() {
+            if let Some(log_id) = wallet_log_ids.get(i) {
+                let log = Self::view_interaction_log(env.clone(), log_id);
+                if log.log_id > 0 {
+                    logs.push_back(log);
+                }
+            }
+        }
+        logs
     }
 }

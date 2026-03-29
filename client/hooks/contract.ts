@@ -10,6 +10,7 @@ import {
   nativeToScVal,
   scValToNative,
   rpc,
+  Account,
 } from "@stellar/stellar-sdk";
 import {
   isConnected,
@@ -21,27 +22,19 @@ import {
 } from "@stellar/freighter-api";
 
 // ============================================================
-// CONSTANTS — Update these for your contract
+// CONSTANTS
 // ============================================================
 
-/** Your deployed Soroban contract ID */
 export const CONTRACT_ADDRESS =
-  "CDJVMAX34YRCQ5JFC6SIOQOVSUY6XWEFYJOLF3SBCKU7CMI3IAP6HPWN";
+  "CA6QNK6HR7NOYC2MF6NUWBWMV4MXE4LKADVWVALSHZ3GRZ3BM52WFXDF";
 
-/** Network passphrase (testnet by default) */
 export const NETWORK_PASSPHRASE = Networks.TESTNET;
-
-/** Soroban RPC URL */
 export const RPC_URL = "https://soroban-testnet.stellar.org";
-
-/** Horizon URL */
 export const HORIZON_URL = "https://horizon-testnet.stellar.org";
-
-/** Network name for Freighter */
 export const NETWORK = "TESTNET";
 
 // ============================================================
-// RPC Server Instance
+// RPC Server
 // ============================================================
 
 const server = new rpc.Server(RPC_URL);
@@ -93,15 +86,6 @@ export async function getWalletAddress(): Promise<string | null> {
 // Contract Interaction Helpers
 // ============================================================
 
-/**
- * Build, simulate, and optionally sign + submit a Soroban contract call.
- *
- * @param method   - The contract method name to invoke
- * @param params   - Array of xdr.ScVal parameters for the method
- * @param caller   - The public key (G...) of the calling account
- * @param sign     - If true, signs via Freighter and submits. If false, only simulates.
- * @returns        The result of the simulation or submission
- */
 export async function callContract(
   method: string,
   params: xdr.ScVal[] = [],
@@ -109,7 +93,9 @@ export async function callContract(
   sign: boolean = true
 ) {
   const contract = new Contract(CONTRACT_ADDRESS);
-  const account = await server.getAccount(caller);
+  const account = sign 
+    ? await server.getAccount(caller)
+    : new Account(caller, "0");
 
   const tx = new TransactionBuilder(account, {
     fee: "100",
@@ -122,20 +108,27 @@ export async function callContract(
   const simulated = await server.simulateTransaction(tx);
 
   if (rpc.Api.isSimulationError(simulated)) {
-    throw new Error(
-      `Simulation failed: ${(simulated as rpc.Api.SimulateTransactionErrorResponse).error}`
-    );
+    const errorMsg = (simulated as rpc.Api.SimulateTransactionErrorResponse).error;
+    if (typeof errorMsg === "string") {
+      if (errorMsg.includes("UnreachableCodeReached") || errorMsg.includes("InvalidAction")) {
+        if (method === "endorse_wallet" || method === "report_wallet") {
+          throw new Error("This wallet is not registered on-chain. Use the Register tab to register it first, then you can endorse or report.");
+        }
+        if (errorMsg.includes("AlreadyRegistered")) {
+          throw new Error("This wallet is already registered.");
+        }
+      }
+      throw new Error(`Simulation failed: ${errorMsg}`);
+    }
+    throw new Error("Transaction simulation failed.");
   }
 
   if (!sign) {
-    // Read-only call — just return the simulation result
     return simulated;
   }
 
-  // Prepare the transaction with the simulation result
   const prepared = rpc.assembleTransaction(tx, simulated).build();
 
-  // Sign with Freighter
   const { signedTxXdr } = await signTransaction(prepared.toXDR(), {
     networkPassphrase: NETWORK_PASSPHRASE,
   });
@@ -151,7 +144,6 @@ export async function callContract(
     throw new Error(`Transaction submission failed: ${result.status}`);
   }
 
-  // Poll for confirmation
   let getResult = await server.getTransaction(result.hash);
   while (getResult.status === "NOT_FOUND") {
     await new Promise((resolve) => setTimeout(resolve, 1000));
@@ -165,16 +157,12 @@ export async function callContract(
   return getResult;
 }
 
-/**
- * Read-only contract call (does not require signing).
- */
 export async function readContract(
   method: string,
   params: xdr.ScVal[] = [],
   caller?: string
 ) {
-  const account =
-    caller || Keypair.random().publicKey(); // Use a random keypair for read-only
+  const account = caller || Keypair.random().publicKey();
   const sim = await callContract(method, params, account, false);
   if (
     rpc.Api.isSimulationSuccess(sim as rpc.Api.SimulateTransactionResponse) &&
@@ -188,79 +176,122 @@ export async function readContract(
 }
 
 // ============================================================
-// ScVal Conversion Helpers
+// ScVal Helpers
 // ============================================================
 
 export function toScValString(value: string): xdr.ScVal {
   return nativeToScVal(value, { type: "string" });
 }
 
-export function toScValU32(value: number): xdr.ScVal {
-  return nativeToScVal(value, { type: "u32" });
-}
-
-export function toScValI128(value: bigint): xdr.ScVal {
-  return nativeToScVal(value, { type: "i128" });
+export function toScValU64(value: number | bigint): xdr.ScVal {
+  return nativeToScVal(BigInt(value), { type: "u64" });
 }
 
 export function toScValAddress(address: string): xdr.ScVal {
   return new Address(address).toScVal();
 }
 
-export function toScValBool(value: boolean): xdr.ScVal {
-  return nativeToScVal(value, { type: "bool" });
-}
-
 // ============================================================
-// Supply Chain Tracker — Contract Methods
+// Wallet Reputation Graph — Contract Methods
 // ============================================================
 
 /**
- * Add a product to the supply chain.
- * Calls: add_product(product_id: String, origin: String)
+ * Register a new wallet identity (or return existing ID).
+ * Returns: wallet_id (u64)
  */
-export async function addProduct(
+export async function registerWallet(caller: string) {
+  return callContract("register_wallet", [toScValAddress(caller)], caller, true);
+}
+
+/**
+ * Get wallet ID by wallet address (read-only).
+ * Returns: wallet_id (u64) or 0 if not registered
+ */
+export async function getWalletIdByAddress(address: string, caller?: string) {
+  return readContract(
+    "get_wallet_id_by_address",
+    [toScValString(address)],
+    caller
+  );
+}
+
+/**
+ * View all interaction history for a wallet (read-only).
+ * Returns: Vec<InteractionLog>
+ */
+export async function viewWalletHistory(walletId: number, caller?: string) {
+  return readContract(
+    "view_wallet_history",
+    [toScValU64(walletId)],
+    caller
+  );
+}
+
+/**
+ * Endorse a wallet with a reason.
+ * Returns: log_id (u64)
+ */
+export async function endorseWallet(
   caller: string,
-  productId: string,
-  origin: string
+  targetWalletId: number,
+  reason: string
 ) {
   return callContract(
-    "add_product",
-    [toScValString(productId), toScValString(origin)],
+    "endorse_wallet",
+    [toScValU64(targetWalletId), toScValString(reason)],
     caller,
     true
   );
 }
 
 /**
- * Update a product's status.
- * Calls: update_status(product_id: String, new_status: String)
+ * Report a wallet with a reason (-3 score).
+ * Returns: log_id (u64)
  */
-export async function updateProductStatus(
+export async function reportWallet(
   caller: string,
-  productId: string,
-  newStatus: string
+  targetWalletId: number,
+  reason: string
 ) {
   return callContract(
-    "update_status",
-    [toScValString(productId), toScValString(newStatus)],
+    "report_wallet",
+    [toScValU64(targetWalletId), toScValString(reason)],
     caller,
     true
   );
 }
 
 /**
- * Get product details (read-only).
- * Calls: get_product(product_id: String) -> Map<Symbol, String>
- * Returns: { origin: string, status: string } or null
+ * View a wallet's reputation record (read-only).
  */
-export async function getProduct(
-  productId: string,
+export async function viewWalletReputation(
+  walletId: number,
   caller?: string
 ) {
   return readContract(
-    "get_product",
-    [toScValString(productId)],
+    "view_wallet_reputation",
+    [toScValU64(walletId)],
+    caller
+  );
+}
+
+/**
+ * View platform-wide global stats (read-only).
+ */
+export async function viewGlobalStats(caller?: string) {
+  return readContract("view_global_stats", [], caller);
+}
+
+/**
+ * View a single interaction log entry (read-only).
+ */
+export async function viewInteractionLog(
+  logId: number,
+  caller?: string
+) {
+  return readContract(
+    "view_interaction_log",
+    [toScValU64(logId)],
     caller
   );
 }
