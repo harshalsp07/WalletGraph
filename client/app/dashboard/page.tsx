@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { animate } from "animejs";
-import Navbar from "@/components/Navbar";
+import { animate, utils } from "animejs";
+import DockHeader from "@/components/DockHeader";
+import FloatingHeader from "@/components/FloatingHeader";
 import ReputationDashboard from "@/components/ReputationDashboard";
 import OnboardingModal, { isOnboardingComplete } from "@/components/OnboardingModal";
 import {
@@ -30,7 +31,7 @@ function WelcomeHeader({ address }: { address: string }) {
   
   return (
     <div className="w-full max-w-2xl mb-8 animate-fade-in-up">
-      <div className="card-botanical p-6 paper-shadow">
+      <div className="card-botanical p-6 paper-shadow transition-transform duration-500 hover:scale-[1.02]">
         <div className="flex items-center gap-4">
           <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-[var(--forest)] via-[var(--moss)] to-[var(--sage)] p-[2px] shadow-[0_4px_12px_rgba(75,110,72,0.25)]">
             <div className="flex h-full w-full items-center justify-center rounded-xl bg-[var(--warm-cream)]">
@@ -95,8 +96,8 @@ function QuickStats({ stats }: { stats: GlobalStats }) {
   
   return (
     <div className="grid grid-cols-3 gap-4">
-      <div className="card-botanical p-4 text-center">
-        <div className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-[var(--warm-cream)] border-2 border-[var(--faded-sage)] text-[var(--forest)] mb-2 shadow-inner">
+      <div className="card-botanical p-4 text-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg cursor-default">
+        <div className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-[var(--warm-cream)] border-2 border-[var(--faded-sage)] text-[var(--forest)] mb-2 shadow-inner transition-transform duration-300 hover:rotate-12 hover:scale-110">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
             <circle cx="9" cy="7" r="4" />
@@ -108,8 +109,8 @@ function QuickStats({ stats }: { stats: GlobalStats }) {
         <p className="text-[10px] uppercase tracking-wider text-[var(--stone)] font-semibold mt-1">Wallets</p>
       </div>
       
-      <div className="card-botanical p-4 text-center">
-        <div className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-[var(--warm-cream)] border-2 border-[var(--faded-sage)] text-[var(--forest)] mb-2 shadow-inner">
+      <div className="card-botanical p-4 text-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg cursor-default">
+        <div className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-[var(--warm-cream)] border-2 border-[var(--faded-sage)] text-[var(--forest)] mb-2 shadow-inner transition-transform duration-300 hover:rotate-12 hover:scale-110">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M7 10v12" />
             <path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z" />
@@ -119,8 +120,8 @@ function QuickStats({ stats }: { stats: GlobalStats }) {
         <p className="text-[10px] uppercase tracking-wider text-[var(--stone)] font-semibold mt-1">Endorsements</p>
       </div>
       
-      <div className="card-botanical p-4 text-center">
-        <div className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-[var(--warm-cream)] border-2 border-[var(--faded-sage)] text-[var(--terra)] mb-2 shadow-inner">
+      <div className="card-botanical p-4 text-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg cursor-default">
+        <div className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-[var(--warm-cream)] border-2 border-[var(--faded-sage)] text-[var(--terra)] mb-2 shadow-inner transition-transform duration-300 hover:-rotate-12 hover:scale-110">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
             <line x1="4" y1="22" x2="4" y2="15" />
@@ -131,6 +132,58 @@ function QuickStats({ stats }: { stats: GlobalStats }) {
       </div>
     </div>
   );
+}
+
+function ParticleField() {
+  const containerRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const c = containerRef.current;
+    const els: HTMLElement[] = [];
+    const leafColors = ["#4B6E48", "#6B8F4E", "#B2AC88", "#D4D0BC", "#5a7a45"];
+
+    for (let i = 0; i < 20; i++) {
+      const el = document.createElement("div");
+      el.className = "tree-leaf";
+      el.style.background = leafColors[i % leafColors.length];
+      el.style.left = `${Math.random() * 100}%`;
+      el.style.top = `${Math.random() * 100}%`;
+      const s = 4 + Math.random() * 6;
+      el.style.width = `${s}px`; el.style.height = `${s}px`;
+      el.style.opacity = "0.05";
+      c.appendChild(el); els.push(el);
+      animate(el, {
+        translateX: () => utils.random(-50, 50),
+        translateY: () => utils.random(-70, 30),
+        rotate: () => utils.random(-180, 180),
+        opacity: [{ to: 0.03 }, { to: 0.1 }, { to: 0.03 }],
+        scale: [{ to: 0.8 }, { to: 1.2 }, { to: 0.8 }],
+        duration: 8000 + Math.random() * 4000,
+        delay: i * 300,
+        loop: true, easing: "easeInOutSine", alternate: true,
+      });
+    }
+
+    // Fireflies
+    for (let i = 0; i < 15; i++) {
+      const el = document.createElement("div");
+      el.style.cssText = `position:absolute;width:3px;height:3px;border-radius:50%;background:#C9A84C;box-shadow:0 0 8px 3px rgba(201,168,76,0.35);pointer-events:none;opacity:0;left:${Math.random()*100}%;top:${Math.random()*85}%`;
+      c.appendChild(el); els.push(el);
+      animate(el, {
+        translateX: () => utils.random(-100, 100),
+        translateY: () => utils.random(-80, 60),
+        opacity: [{ to: 0 }, { to: 0.5 }, { to: 0.7 }, { to: 0 }],
+        scale: [{ to: 0.5 }, { to: 1.4 }, { to: 0.5 }],
+        duration: 3500 + Math.random() * 3500,
+        delay: i * 400 + 800,
+        loop: true, easing: "easeInOutQuad", alternate: true,
+      });
+    }
+
+    return () => els.forEach(e => e.remove());
+  }, []);
+
+  return <div ref={containerRef} className="pointer-events-none absolute inset-0 overflow-hidden" />;
 }
 
 export default function DashboardPage() {
@@ -207,7 +260,8 @@ export default function DashboardPage() {
           <div className="absolute top-[-15%] left-[-8%] h-[500px] w-[500px] rounded-full bg-[var(--sage)]/10 blur-[100px] animate-gentle-sway" />
           <div className="absolute bottom-[-10%] right-[-5%] h-[400px] w-[400px] rounded-full bg-[var(--forest)]/8 blur-[120px] animate-gentle-sway" style={{ animationDelay: "4s" }} />
         </div>
-        <Navbar
+        <FloatingHeader />
+        <DockHeader
           walletAddress={null}
           onConnect={handleConnect}
           onDisconnect={handleDisconnect}
@@ -231,9 +285,11 @@ export default function DashboardPage() {
         <div className="absolute top-[-15%] left-[-8%] h-[500px] w-[500px] rounded-full bg-[var(--sage)]/10 blur-[100px] animate-gentle-sway" />
         <div className="absolute bottom-[-10%] right-[-5%] h-[400px] w-[400px] rounded-full bg-[var(--forest)]/8 blur-[120px] animate-gentle-sway" style={{ animationDelay: "4s" }} />
         <div className="absolute top-[30%] right-[10%] h-[300px] w-[300px] rounded-full bg-[var(--amber-sap)]/5 blur-[100px] animate-gentle-sway" style={{ animationDelay: "2s" }} />
+        <ParticleField />
       </div>
 
-      <Navbar
+      <FloatingHeader />
+      <DockHeader
         walletAddress={walletAddress}
         onConnect={handleConnect}
         onDisconnect={handleDisconnect}

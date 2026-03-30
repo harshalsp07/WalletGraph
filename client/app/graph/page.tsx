@@ -12,6 +12,18 @@ import {
 } from "@/hooks/contract";
 import GraphVisualization from "@/components/GraphVisualization";
 import DockHeader from "@/components/DockHeader";
+import FloatingHeader from "@/components/FloatingHeader";
+import { useToast } from "@/context/ToastContext";
+
+// Simple UI icons specifically for the graph HUD
+function SearchIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="11" cy="11" r="8" />
+      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+    </svg>
+  );
+}
 
 interface ReputationRecord {
   wallet_id: number;
@@ -33,7 +45,10 @@ interface InteractionLog {
 function GraphPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { showToast } = useToast();
+  
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
+  const [searchInput, setSearchInput] = useState("");
   const [isConnecting, setIsConnecting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -83,10 +98,10 @@ function GraphPageContent() {
 
         if (addressParamVal) {
           const result = await getWalletIdByAddress(addressParamVal, walletAddress || undefined);
-          if (result && typeof result === "object" && "value" in result) {
-            targetWalletId = Number(result.value);
-          } else if (typeof result === "number") {
-            targetWalletId = result;
+          if (typeof result === "bigint" || typeof result === "number") {
+            targetWalletId = Number(result);
+          } else if (result && typeof result === "object" && "value" in result) {
+            targetWalletId = Number((result as any).value);
           } else if (result && typeof result === "object") {
             const resultObj = result as Record<string, unknown>;
             targetWalletId = Number(resultObj.value ?? resultObj);
@@ -168,6 +183,19 @@ function GraphPageContent() {
     setWalletAddress(null);
   }, []);
 
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!searchInput.trim()) return;
+    
+    showToast("Loading graph data...", "info");
+    if (searchInput.startsWith("G")) {
+      router.push(`/graph?address=${encodeURIComponent(searchInput.trim())}`);
+    } else {
+      router.push(`/graph?id=${encodeURIComponent(searchInput.trim())}`);
+    }
+    setSearchInput("");
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-[var(--parchment)] flex items-center justify-center">
@@ -182,6 +210,7 @@ function GraphPageContent() {
           </div>
           <p className="text-sm text-[var(--stone)] font-medium">Loading graph...</p>
         </div>
+        <FloatingHeader />
         <DockHeader walletAddress={walletAddress} onConnect={handleConnect} onDisconnect={handleDisconnect} isConnecting={isConnecting} />
       </div>
     );
@@ -209,6 +238,7 @@ function GraphPageContent() {
             </button>
           </div>
         </div>
+        <FloatingHeader />
         <DockHeader walletAddress={walletAddress} onConnect={handleConnect} onDisconnect={handleDisconnect} isConnecting={isConnecting} />
       </div>
     );
@@ -216,11 +246,81 @@ function GraphPageContent() {
 
   return (
     <div className="min-h-screen bg-[var(--parchment)] relative overflow-hidden">
-      <GraphVisualization
-        reputation={reputation}
-        walletHistory={walletHistory}
-        walletAddress={walletAddress}
-      />
+      {/* Background Vignette */}
+      <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_center,transparent_0%,rgba(44,44,43,0.05)_100%)] z-0" />
+      
+      <div className="relative z-10 w-full h-full min-h-screen">
+        <GraphVisualization
+          reputation={reputation}
+          walletHistory={walletHistory}
+          walletAddress={walletAddress}
+        />
+      </div>
+
+      {/* Graph HUD - Floating Overlays */}
+      <div className="absolute top-24 left-6 z-30 pointer-events-none flex flex-col gap-4">
+        
+        {/* Graph Search Bar */}
+        <form 
+          onSubmit={handleSearchSubmit}
+          className="pointer-events-auto flex items-center bg-[var(--warm-cream)]/90 backdrop-blur-md border border-[var(--faded-sage)]/70 rounded-2xl shadow-[0_4px_16px_rgba(44,44,43,0.06)] overflow-hidden w-80 transition-all focus-within:ring-2 focus-within:ring-[var(--sage)]/50 focus-within:shadow-[0_8px_24px_rgba(75,110,72,0.12)] hover:border-[var(--sage)]"
+        >
+          <div className="pl-4 pr-2 text-[var(--stone)]">
+            <SearchIcon />
+          </div>
+          <input
+            type="text"
+            placeholder="Search wallet ID or address..."
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            className="flex-1 bg-transparent py-3 pr-4 text-sm outline-none placeholder:text-[var(--stone)]/60 text-[var(--dark-ink)] font-medium"
+          />
+        </form>
+
+        {/* Selected Wallet Detail HUD */}
+        {reputation && (
+          <div className="pointer-events-auto w-80 bg-[var(--warm-cream)]/90 backdrop-blur-md border border-[var(--faded-sage)]/70 rounded-2xl shadow-[0_8px_32px_rgba(44,44,43,0.08)] p-5 animate-fade-in-up">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-heading font-bold text-lg text-[var(--dark-ink)]">Node Focus</h3>
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[var(--forest)]/10 border border-[var(--forest)]/20">
+                <span className="relative flex h-1.5 w-1.5">
+                  <span className={`absolute inline-flex h-full w-full rounded-full opacity-75 ${reputation.is_active ? "bg-[var(--forest)] animate-ping" : "bg-[var(--terra)]"}`} />
+                  <span className={`relative inline-flex h-1.5 w-1.5 rounded-full ${reputation.is_active ? "bg-[var(--forest)]" : "bg-[var(--terra)]"}`} />
+                </span>
+                <span className="text-[9px] font-mono-data font-bold tracking-widest uppercase text-[var(--forest)]">
+                  {reputation.is_active ? "Active" : "Inactive"}
+                </span>
+              </div>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <p className="text-[10px] font-mono-data text-[var(--stone)] uppercase tracking-wider mb-1">Wallet ID</p>
+                <p className="text-xl font-mono-data font-bold text-[var(--forest)]">#{reputation.wallet_id}</p>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-[var(--parchment)] rounded-xl p-3 border border-[var(--faded-sage)]/30">
+                  <p className="text-[10px] font-mono-data text-[var(--stone)] uppercase tracking-wider mb-1">Reputation</p>
+                  <p className="text-2xl font-heading font-black text-[var(--dark-ink)]">{reputation.score}</p>
+                </div>
+                <div className="flex flex-col gap-2">
+                  <div className="bg-[var(--parchment)] rounded-lg p-2 px-3 border border-[var(--moss)]/20 flex justify-between items-center">
+                    <span className="text-[10px] font-mono-data text-[var(--moss)] uppercase tracking-wider">Endorses</span>
+                    <span className="font-bold text-[var(--moss)] text-sm">{reputation.endorsement_count}</span>
+                  </div>
+                  <div className="bg-[var(--parchment)] rounded-lg p-2 px-3 border border-[var(--terra)]/20 flex justify-between items-center">
+                    <span className="text-[10px] font-mono-data text-[var(--terra)] uppercase tracking-wider">Reports</span>
+                    <span className="font-bold text-[var(--terra)] text-sm">{reputation.report_count}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <FloatingHeader />
       <DockHeader walletAddress={walletAddress} onConnect={handleConnect} onDisconnect={handleDisconnect} isConnecting={isConnecting} />
     </div>
   );

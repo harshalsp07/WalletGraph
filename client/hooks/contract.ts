@@ -26,12 +26,26 @@ import {
 // ============================================================
 
 export const CONTRACT_ADDRESS =
-  "CA6QNK6HR7NOYC2MF6NUWBWMV4MXE4LKADVWVALSHZ3GRZ3BM52WFXDF";
+  "CDHR3VDMHNWYXAF6ZNJEVUQWOU6P7TP45OMWOYM3TLACOZOEOIPJOOSX";
 
 export const NETWORK_PASSPHRASE = Networks.TESTNET;
 export const RPC_URL = "https://soroban-testnet.stellar.org";
 export const HORIZON_URL = "https://horizon-testnet.stellar.org";
 export const NETWORK = "TESTNET";
+
+// ============================================================
+// Error Codes (must match contracterror in lib.rs)
+// ============================================================
+
+const CONTRACT_ERRORS: Record<number, string> = {
+  1: "The target wallet does not exist or is inactive.",
+  2: "A wallet cannot endorse or report itself.",
+  3: "You have already endorsed/reported this wallet.",
+  4: "This wallet address is already registered.",
+  5: "Unauthorized — only the admin can perform this action.",
+  6: "This wallet is already deactivated.",
+  7: "The reason cannot be empty.",
+};
 
 // ============================================================
 // RPC Server
@@ -86,6 +100,16 @@ export async function getWalletAddress(): Promise<string | null> {
 // Contract Interaction Helpers
 // ============================================================
 
+function parseContractError(errorMsg: string): string {
+  // Try to extract error code from Soroban error messages
+  const codeMatch = errorMsg.match(/Error\(Contract, #(\d+)\)/);
+  if (codeMatch) {
+    const code = parseInt(codeMatch[1]);
+    return CONTRACT_ERRORS[code] || `Contract error #${code}`;
+  }
+  return errorMsg;
+}
+
 export async function callContract(
   method: string,
   params: xdr.ScVal[] = [],
@@ -110,15 +134,8 @@ export async function callContract(
   if (rpc.Api.isSimulationError(simulated)) {
     const errorMsg = (simulated as rpc.Api.SimulateTransactionErrorResponse).error;
     if (typeof errorMsg === "string") {
-      if (errorMsg.includes("UnreachableCodeReached") || errorMsg.includes("InvalidAction")) {
-        if (method === "endorse_wallet" || method === "report_wallet") {
-          throw new Error("This wallet is not registered on-chain. Use the Register tab to register it first, then you can endorse or report.");
-        }
-        if (errorMsg.includes("AlreadyRegistered")) {
-          throw new Error("This wallet is already registered.");
-        }
-      }
-      throw new Error(`Simulation failed: ${errorMsg}`);
+      const friendlyMsg = parseContractError(errorMsg);
+      throw new Error(friendlyMsg);
     }
     throw new Error("Transaction simulation failed.");
   }
@@ -197,20 +214,27 @@ export function toScValAddress(address: string): xdr.ScVal {
 
 /**
  * Register a new wallet identity (or return existing ID).
+ * Caller's address is used for auth.
  * Returns: wallet_id (u64)
  */
 export async function registerWallet(caller: string) {
-  return callContract("register_wallet", [toScValAddress(caller)], caller, true);
+  return callContract(
+    "register_wallet",
+    [toScValAddress(caller)],
+    caller,
+    true
+  );
 }
 
 /**
  * Get wallet ID by wallet address (read-only).
+ * Uses Address type now.
  * Returns: wallet_id (u64) or 0 if not registered
  */
 export async function getWalletIdByAddress(address: string, caller?: string) {
   return readContract(
     "get_wallet_id_by_address",
-    [toScValString(address)],
+    [toScValAddress(address)],
     caller
   );
 }
@@ -229,6 +253,7 @@ export async function viewWalletHistory(walletId: number, caller?: string) {
 
 /**
  * Endorse a wallet with a reason.
+ * Caller address is passed for auth + self-endorsement guard.
  * Returns: log_id (u64)
  */
 export async function endorseWallet(
@@ -238,14 +263,15 @@ export async function endorseWallet(
 ) {
   return callContract(
     "endorse_wallet",
-    [toScValU64(targetWalletId), toScValString(reason)],
+    [toScValAddress(caller), toScValU64(targetWalletId), toScValString(reason)],
     caller,
     true
   );
 }
 
 /**
- * Report a wallet with a reason (-3 score).
+ * Report a wallet with a reason (-3 score, floor at -100).
+ * Caller address is passed for auth + self-report guard.
  * Returns: log_id (u64)
  */
 export async function reportWallet(
@@ -255,7 +281,7 @@ export async function reportWallet(
 ) {
   return callContract(
     "report_wallet",
-    [toScValU64(targetWalletId), toScValString(reason)],
+    [toScValAddress(caller), toScValU64(targetWalletId), toScValString(reason)],
     caller,
     true
   );

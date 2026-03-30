@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef } from "react";
 import { animate } from "animejs";
+import { useToast } from "@/context/ToastContext";
 import {
   registerWallet,
   endorseWallet,
@@ -209,7 +210,7 @@ function ScoreBar({ score, endorsements, reports }: { score: number; endorsement
 
 // ── Comment Item Component ──────────────────────────────────────
 
-function CommentItem({ log }: { log: InteractionLog }) {
+function CommentItem({ log, index }: { log: InteractionLog; index: number }) {
   const isEndorsement = log.is_endorsement;
   const color = isEndorsement ? "var(--forest)" : "var(--terra)";
   const bgColor = isEndorsement ? "rgba(75, 110, 72, 0.08)" : "rgba(160, 82, 45, 0.08)";
@@ -225,7 +226,9 @@ function CommentItem({ log }: { log: InteractionLog }) {
       className="rounded-lg p-4 border animate-fade-in-up"
       style={{ 
         background: bgColor, 
-        borderColor: `${color}20` 
+        borderColor: `${color}20`,
+        animationDelay: `${index * 80}ms`,
+        animationFillMode: 'both'
       }}
     >
       <div className="flex items-start gap-3">
@@ -275,13 +278,33 @@ function createInkRipple(e: React.MouseEvent<HTMLButtonElement>) {
   const btn = e.currentTarget;
   const rect = btn.getBoundingClientRect();
   const ripple = document.createElement("span");
-  ripple.className = "ink-ripple";
-  const size = Math.max(rect.width, rect.height);
-  ripple.style.width = ripple.style.height = `${size}px`;
+  ripple.style.position = "absolute";
+  ripple.style.borderRadius = "50%";
+  ripple.style.backgroundColor = "currentColor";
+  ripple.style.opacity = "0.2";
+  ripple.style.pointerEvents = "none";
+  ripple.style.transformOrigin = "center center";
+
+  const size = Math.max(rect.width, rect.height) * 2;
+  ripple.style.width = `${size}px`;
+  ripple.style.height = `${size}px`;
   ripple.style.left = `${e.clientX - rect.left - size / 2}px`;
   ripple.style.top = `${e.clientY - rect.top - size / 2}px`;
+  
+  const computedStyle = window.getComputedStyle(btn);
+  if (computedStyle.position === "static") {
+    btn.style.position = "relative";
+  }
+  btn.style.overflow = "hidden";
   btn.appendChild(ripple);
-  setTimeout(() => ripple.remove(), 600);
+  
+  animate(ripple, {
+    scale: [0, 1],
+    opacity: [0.2, 0],
+    duration: 650,
+    easing: "easeOutCirc",
+    complete: () => ripple.remove()
+  });
 }
 
 // ── Main Component ───────────────────────────────────────────
@@ -295,9 +318,8 @@ interface Props {
 }
 
 export default function ReputationDashboard({ walletAddress, onConnect, isConnecting }: Props) {
+  const { showToast } = useToast();
   const [activeTab, setActiveTab] = useState<Tab>("lookup");
-  const [error, setError] = useState<string | null>(null);
-  const [txStatus, setTxStatus] = useState<string | null>(null);
   const cardRef = useRef<HTMLDivElement>(null);
 
   // Lookup state
@@ -341,9 +363,10 @@ export default function ReputationDashboard({ walletAddress, onConnect, isConnec
       if (inner) {
         animate(inner, {
           opacity: [0, 1],
-          translateY: [12, 0],
-          duration: 400,
-          easing: "easeOutCubic",
+          translateY: [8, 0],
+          scale: [0.99, 1],
+          duration: 500,
+          easing: "easeOutSine",
         });
       }
     }
@@ -355,9 +378,8 @@ export default function ReputationDashboard({ walletAddress, onConnect, isConnec
   // ── Handlers ───────────────────────────────────────────────
 
   const handleLookup = useCallback(async () => {
-    if (!lookupInput.trim()) return setError("Enter a wallet ID or Stellar address");
+    if (!lookupInput.trim()) return showToast("Enter a wallet ID or Stellar address", "error");
     
-    setError(null);
     setIsLooking(true);
     setReputation(null);
     setWalletHistory([]);
@@ -370,10 +392,10 @@ export default function ReputationDashboard({ walletAddress, onConnect, isConnec
       if (isStellarAddress(input)) {
         // It's a Stellar address - look up the wallet ID
         const result = await getWalletIdByAddress(input, walletAddress || undefined);
-        if (result && typeof result === "object" && "value" in result) {
-          walletId = Number(result.value);
-        } else if (typeof result === "number") {
-          walletId = result;
+        if (typeof result === "bigint" || typeof result === "number") {
+          walletId = Number(result);
+        } else if (result && typeof result === "object" && "value" in result) {
+          walletId = Number((result as any).value);
         } else if (result && typeof result === "object") {
           const resultObj = result as Record<string, unknown>;
           walletId = Number(resultObj.value ?? resultObj);
@@ -382,7 +404,7 @@ export default function ReputationDashboard({ walletAddress, onConnect, isConnec
         }
         
         if (walletId === 0) {
-          setError("This wallet address is not registered yet.");
+          showToast("This wallet address is not registered yet.", "error");
           setIsLooking(false);
           return;
         }
@@ -390,7 +412,7 @@ export default function ReputationDashboard({ walletAddress, onConnect, isConnec
         // It's a numeric wallet ID
         walletId = parseInt(input);
         if (isNaN(walletId) || walletId < 1) {
-          setError("Wallet ID must be a positive number");
+          showToast("Wallet ID must be a positive number", "error");
           setIsLooking(false);
           return;
         }
@@ -429,31 +451,30 @@ export default function ReputationDashboard({ walletAddress, onConnect, isConnec
           // History not available
         }
       } else {
-        setError("Wallet not found or not registered");
+        showToast("Wallet not found or not registered", "error");
       }
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Query failed");
+      showToast(err instanceof Error ? err.message : "Query failed", "error");
     } finally {
       setIsLooking(false);
     }
-  }, [lookupInput, walletAddress]);
+  }, [lookupInput, walletAddress, showToast]);
 
   const handleRegister = useCallback(async (e: React.MouseEvent<HTMLButtonElement>) => {
-    if (!walletAddress) return setError("Connect wallet first");
+    if (!walletAddress) return showToast("Connect wallet first", "error");
     createInkRipple(e);
-    setError(null);
     setIsRegistering(true);
-    setTxStatus("Awaiting signature…");
+    showToast("Awaiting signature…", "info");
     setRegisteredId(null);
     try {
       await registerWallet(walletAddress);
       // Get the wallet ID for this address
       const walletIdResult = await getWalletIdByAddress(walletAddress, walletAddress);
       let walletId: number | null = null;
-      if (walletIdResult && typeof walletIdResult === "object" && "value" in walletIdResult) {
-        walletId = Number(walletIdResult.value);
-      } else if (typeof walletIdResult === "number") {
-        walletId = walletIdResult;
+      if (typeof walletIdResult === "bigint" || typeof walletIdResult === "number") {
+        walletId = Number(walletIdResult);
+      } else if (walletIdResult && typeof walletIdResult === "object" && "value" in walletIdResult) {
+        walletId = Number((walletIdResult as any).value);
       } else if (walletIdResult && typeof walletIdResult === "object") {
         const resultObj = walletIdResult as Record<string, unknown>;
         walletId = Number(resultObj.value ?? resultObj);
@@ -461,76 +482,68 @@ export default function ReputationDashboard({ walletAddress, onConnect, isConnec
       
       if (walletId && walletId > 0) {
         setRegisteredId(walletId);
-        setTxStatus("Wallet registered on-chain!");
+        showToast("Wallet registered on-chain!", "success");
       } else {
-        setTxStatus("Registration completed!");
+        showToast("Registration completed!", "success");
       }
-      setTimeout(() => setTxStatus(null), 6000);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Registration failed");
-      setTxStatus(null);
+      showToast(err instanceof Error ? err.message : "Registration failed", "error");
     } finally {
       setIsRegistering(false);
     }
-  }, [walletAddress]);
+  }, [walletAddress, showToast]);
 
   const handleEndorse = useCallback(async (e: React.MouseEvent<HTMLButtonElement>) => {
-    if (!walletAddress) return setError("Connect wallet first");
-    if (!endorseId.trim() || !endorseReason.trim()) return setError("Fill in all fields");
+    if (!walletAddress) return showToast("Connect wallet first", "error");
+    if (!endorseId.trim() || !endorseReason.trim()) return showToast("Fill in all fields", "error");
     const id = parseInt(endorseId.trim());
-    if (isNaN(id) || id < 1) return setError("Wallet ID must be a positive number");
+    if (isNaN(id) || id < 1) return showToast("Wallet ID must be a positive number", "error");
     createInkRipple(e);
-    setError(null);
     setIsEndorsing(true);
-    setTxStatus("Verifying wallet…");
+    showToast("Verifying wallet…", "info");
     try {
       const rep = await viewWalletReputation(id, walletAddress) as unknown as Record<string, unknown>;
       if (!rep || !rep.is_active || Number(rep.wallet_id) === 0) {
         throw new Error(`Target wallet ID ${id} does not exist or is inactive.`);
       }
 
-      setTxStatus("Awaiting signature…");
+      showToast("Awaiting signature…", "info");
       await endorseWallet(walletAddress, id, endorseReason.trim());
-      setTxStatus("Endorsement recorded on-chain! (+1 score)");
+      showToast("Endorsement recorded on-chain! (+1 score)", "success");
       setEndorseId("");
       setEndorseReason("");
-      setTimeout(() => setTxStatus(null), 6000);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Endorsement failed");
-      setTxStatus(null);
+      showToast(err instanceof Error ? err.message : "Endorsement failed", "error");
     } finally {
       setIsEndorsing(false);
     }
-  }, [walletAddress, endorseId, endorseReason]);
+  }, [walletAddress, endorseId, endorseReason, showToast]);
 
   const handleReport = useCallback(async (e: React.MouseEvent<HTMLButtonElement>) => {
-    if (!walletAddress) return setError("Connect wallet first");
-    if (!reportId.trim() || !reportReason.trim()) return setError("Fill in all fields");
+    if (!walletAddress) return showToast("Connect wallet first", "error");
+    if (!reportId.trim() || !reportReason.trim()) return showToast("Fill in all fields", "error");
     const id = parseInt(reportId.trim());
-    if (isNaN(id) || id < 1) return setError("Wallet ID must be a positive number");
+    if (isNaN(id) || id < 1) return showToast("Wallet ID must be a positive number", "error");
     createInkRipple(e);
-    setError(null);
     setIsReporting(true);
-    setTxStatus("Verifying wallet…");
+    showToast("Verifying wallet…", "info");
     try {
       const rep = await viewWalletReputation(id, walletAddress) as unknown as Record<string, unknown>;
       if (!rep || !rep.is_active || Number(rep.wallet_id) === 0) {
         throw new Error(`Target wallet ID ${id} does not exist or is inactive.`);
       }
 
-      setTxStatus("Awaiting signature…");
+      showToast("Awaiting signature…", "info");
       await reportWallet(walletAddress, id, reportReason.trim());
-      setTxStatus("Report submitted on-chain! (−3 score)");
+      showToast("Report submitted on-chain! (−3 score)", "success");
       setReportId("");
       setReportReason("");
-      setTimeout(() => setTxStatus(null), 6000);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Report failed");
-      setTxStatus(null);
+      showToast(err instanceof Error ? err.message : "Report failed", "error");
     } finally {
       setIsReporting(false);
     }
-  }, [walletAddress, reportId, reportReason]);
+  }, [walletAddress, reportId, reportReason, showToast]);
 
   // ── Tab config ─────────────────────────────────────────────
 
@@ -543,28 +556,6 @@ export default function ReputationDashboard({ walletAddress, onConnect, isConnec
 
   return (
     <div ref={cardRef} className="w-full max-w-2xl" style={{ opacity: 0 }}>
-      {/* Toast: Error */}
-      {error && (
-        <div className="mb-4 flex items-start gap-3 rounded-xl border border-[var(--terra)]/20 bg-[var(--terra)]/5 px-4 py-3 animate-slide-down">
-          <span className="mt-0.5 text-[var(--terra)]"><AlertIcon /></span>
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold text-[var(--terra)]">Error</p>
-            <p className="text-xs text-[var(--terra)]/70 mt-0.5 break-all">{error}</p>
-          </div>
-          <button onClick={() => setError(null)} className="shrink-0 text-[var(--terra)]/40 hover:text-[var(--terra)] text-lg leading-none cursor-pointer">&times;</button>
-        </div>
-      )}
-
-      {/* Toast: Success */}
-      {txStatus && (
-        <div className="mb-4 flex items-center gap-3 rounded-xl border border-[var(--forest)]/20 bg-[var(--forest)]/5 px-4 py-3 animate-slide-down">
-          <span className="text-[var(--forest)]">
-            {txStatus.includes("on-chain") ? <CheckIcon /> : <SpinnerIcon />}
-          </span>
-          <span className="text-sm text-[var(--forest)] font-medium">{txStatus}</span>
-        </div>
-      )}
-
       {/* Main Card */}
       <div className="card-botanical overflow-hidden">
         {/* Header */}
@@ -589,7 +580,7 @@ export default function ReputationDashboard({ walletAddress, onConnect, isConnec
           {tabs.map((t) => (
             <button
               key={t.key}
-              onClick={() => { setActiveTab(t.key); setError(null); setReputation(null); setRegisteredId(null); setWalletHistory([]); setShowComments(false); }}
+              onClick={() => { setActiveTab(t.key); setReputation(null); setRegisteredId(null); setWalletHistory([]); setShowComments(false); }}
               className={`relative flex items-center gap-2 px-5 py-3.5 text-sm font-semibold transition-all cursor-pointer ${
                 activeTab === t.key
                   ? "text-[var(--dark-ink)]"
@@ -661,10 +652,19 @@ export default function ReputationDashboard({ walletAddress, onConnect, isConnec
                     </div>
 
                     {walletHistory.length > 0 && (
-                      <div className="mt-5 pt-4 border-t border-[var(--faded-sage)]">
+                      <div className="mt-5 pt-4 border-t border-[var(--faded-sage)] space-y-4 animate-fade-in-up">
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-sm font-semibold text-[var(--dark-ink)]">Trust History</h4>
+                          <span className="text-xs text-[var(--stone)]">{walletHistory.length} records</span>
+                        </div>
+                        <div className="space-y-3">
+                          {walletHistory.map((log, index) => (
+                            <CommentItem key={log.log_id} log={log} index={index} />
+                          ))}
+                        </div>
                         <a
                           href={`/graph?id=${reputation.wallet_id}`}
-                          className="flex items-center justify-center gap-2 w-full py-3 rounded-xl border-2 border-dashed border-[var(--faded-sage)] text-sm font-semibold text-[var(--forest)] hover:bg-[var(--forest)]/5 hover:border-[var(--forest)]/40 transition-all"
+                          className="flex items-center justify-center gap-2 w-full py-3 mt-4 rounded-xl border-2 border-dashed border-[var(--faded-sage)] text-sm font-semibold text-[var(--forest)] hover:bg-[var(--forest)]/5 hover:border-[var(--forest)]/40 transition-all"
                         >
                           <GraphIcon />
                           View Network Graph

@@ -3,7 +3,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { animate } from "animejs";
-import Navbar from "@/components/Navbar";
+import DockHeader from "@/components/DockHeader";
+import FloatingHeader from "@/components/FloatingHeader";
 import {
   connectWallet,
   checkConnection,
@@ -149,7 +150,8 @@ export default function LoginPage() {
         <div className="absolute top-[30%] right-[10%] h-[300px] w-[300px] rounded-full bg-[var(--amber-sap)]/5 blur-[100px] animate-gentle-sway" style={{ animationDelay: "2s" }} />
       </div>
 
-      <Navbar
+      <FloatingHeader />
+      <DockHeader
         walletAddress={walletAddress}
         onConnect={handleConnect}
         onDisconnect={handleDisconnect}

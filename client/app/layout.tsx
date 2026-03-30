@@ -20,6 +20,8 @@ const jetbrainsMono = JetBrains_Mono({
   weight: ["400", "500", "600"],
 });
 
+import { ToastProvider } from "@/context/ToastContext";
+
 export const metadata: Metadata = {
   title: "WalletGraph — On-Chain Wallet Reputation",
   description:
@@ -37,7 +39,9 @@ export default function RootLayout({
       className={`${playfair.variable} ${sourceSans.variable} ${jetbrainsMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-[#F2F0EF]">
-        {children}
+        <ToastProvider>
+          {children}
+        </ToastProvider>
       </body>
     </html>
   );
