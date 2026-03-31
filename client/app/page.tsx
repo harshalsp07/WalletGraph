@@ -18,16 +18,43 @@ import {
    ────────────────────────────────────────── */
 function useScrollProgress() {
   const [progress, setProgress] = useState(0);
+  const target = useRef(0);
+  const current = useRef(0);
+  const rafId = useRef<number>(0);
+
   useEffect(() => {
+    const el = document.documentElement;
+    const calculateMax = () => el.scrollHeight - el.clientHeight;
+
     const onScroll = () => {
-      const el = document.documentElement;
-      const max = el.scrollHeight - el.clientHeight;
-      setProgress(max > 0 ? Math.min(window.scrollY / max, 1) : 0);
+      const max = calculateMax();
+      target.current = max > 0 ? Math.min(window.scrollY / max, 1) : 0;
     };
+
+    const tick = () => {
+      const diff = target.current - current.current;
+      if (Math.abs(diff) > 0.0005) {
+        current.current += diff * 0.08;
+        setProgress(current.current);
+      } else if (current.current !== target.current) {
+        current.current = target.current;
+        setProgress(current.current);
+      }
+      rafId.current = requestAnimationFrame(tick);
+    };
+
     window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll, { passive: true });
     onScroll();
-    return () => window.removeEventListener("scroll", onScroll);
+    rafId.current = requestAnimationFrame(tick);
+
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+      cancelAnimationFrame(rafId.current);
+    };
   }, []);
+
   return progress;
 }
 
@@ -62,32 +89,32 @@ function TreeSVG({ progress }: { progress: number }) {
       el.style.strokeDashoffset = String(len * (1 - eased));
     };
 
-    // Roots
-    reveal("roots1", 0.00, 0.10);
-    reveal("roots2", 0.02, 0.11);
-    reveal("roots3", 0.03, 0.12);
-    // Trunk
-    reveal("trunk", 0.06, 0.25);
-    reveal("trunkR", 0.08, 0.26);
-    // Lower branches
-    reveal("brL1", 0.18, 0.36);
-    reveal("brR1", 0.22, 0.40);
-    reveal("brL1s", 0.30, 0.44);
-    reveal("brR1s", 0.34, 0.48);
-    // Upper branches
-    reveal("brL2", 0.32, 0.50);
-    reveal("brR2", 0.36, 0.54);
-    reveal("brL2s", 0.42, 0.56);
-    reveal("brR2s", 0.46, 0.58);
+    // Crown starts at top of page (progress 0)
+    reveal("crownL", 0.00, 0.15);
+    reveal("crownR", 0.02, 0.16);
+    reveal("crownC", 0.04, 0.20);
     // Canopy branches
-    reveal("canL", 0.50, 0.66);
-    reveal("canR", 0.54, 0.68);
-    reveal("canL2", 0.56, 0.70);
-    reveal("canR2", 0.58, 0.72);
-    // Crown
-    reveal("crownL", 0.68, 0.85);
-    reveal("crownR", 0.70, 0.86);
-    reveal("crownC", 0.74, 0.90);
+    reveal("canL", 0.10, 0.25);
+    reveal("canR", 0.14, 0.28);
+    reveal("canL2", 0.16, 0.30);
+    reveal("canR2", 0.18, 0.32);
+    // Upper branches
+    reveal("brL2", 0.25, 0.45);
+    reveal("brR2", 0.30, 0.50);
+    reveal("brL2s", 0.35, 0.52);
+    reveal("brR2s", 0.40, 0.54);
+    // Lower branches
+    reveal("brL1", 0.45, 0.65);
+    reveal("brR1", 0.50, 0.70);
+    reveal("brL1s", 0.55, 0.72);
+    reveal("brR1s", 0.60, 0.75);
+    // Trunk
+    reveal("trunk", 0.10, 0.85); 
+    reveal("trunkR", 0.12, 0.86);
+    // Roots
+    reveal("roots1", 0.80, 0.95);
+    reveal("roots2", 0.82, 0.96);
+    reveal("roots3", 0.85, 1.00);
   }, [progress]);
 
   const op = (start: number, speed = 8) =>
@@ -97,11 +124,15 @@ function TreeSVG({ progress }: { progress: number }) {
     <svg
       ref={svgRef}
       viewBox="0 0 800 3400"
-      className="tree-svg"
+      className="tree-svg animate-gentle-sway"
+      style={{ transformOrigin: '400px 3000px', animationDuration: '18s' }}
       preserveAspectRatio="xMidYMid meet"
       aria-hidden="true"
     >
       <defs>
+        <filter id="treeShadow" x="-20%" y="-20%" width="140%" height="140%">
+          <feDropShadow dx="0" dy="10" stdDeviation="8" floodColor="#2a4428" floodOpacity="0.25" />
+        </filter>
         <linearGradient id="trunkG" x1="0" y1="0" x2="1" y2="0">
           <stop offset="0%" stopColor="#5a7a45" stopOpacity="0.6" />
           <stop offset="35%" stopColor="#3d5c3b" stopOpacity="1" />
@@ -135,8 +166,9 @@ function TreeSVG({ progress }: { progress: number }) {
         </filter>
       </defs>
 
-      {/* ═══ ROOTS ═══ */}
-      <g opacity="0.85">
+      <g filter="url(#treeShadow)">
+        {/* ═══ ROOTS ═══ */}
+        <g opacity="0.85">
         <path ref={setRef("roots1")} d="M 400 3000 C 380 3030 340 3060 290 3080 C 240 3100 190 3110 150 3120 M 400 3000 C 420 3040 460 3070 510 3090 C 560 3110 610 3115 650 3120 M 400 3000 C 395 3050 375 3080 345 3110 C 315 3140 280 3155 245 3160" stroke="url(#rootG)" strokeWidth="7" strokeLinecap="round" fill="none" filter="url(#softG)" />
         <path ref={setRef("roots2")} d="M 400 3000 C 405 3045 430 3075 455 3105 C 480 3135 510 3150 545 3155 M 400 3000 C 398 3060 385 3100 365 3130 C 340 3165 305 3180 270 3190" stroke="url(#rootG)" strokeWidth="5" strokeLinecap="round" fill="none" filter="url(#softG)" />
         <path ref={setRef("roots3")} d="M 400 3000 C 402 3055 425 3095 445 3125 C 468 3158 500 3175 530 3185 M 400 3000 C 400 3070 390 3110 372 3150 C 350 3190 320 3210 285 3220" stroke="url(#rootG)" strokeWidth="4" strokeLinecap="round" fill="none" opacity="0.6" />
@@ -182,10 +214,11 @@ function TreeSVG({ progress }: { progress: number }) {
       <path ref={setRef("crownL")} d="M 392 600 C 355 550 300 510 255 490 C 220 475 195 465 175 445 C 160 430 155 410 155 390" stroke="#5a7a45" strokeWidth="8" strokeLinecap="round" fill="none" strokeOpacity="0.8" />
       <path ref={setRef("crownR")} d="M 408 580 C 445 530 500 490 545 470 C 580 455 605 445 625 425 C 640 410 645 390 643 370" stroke="#5a7a45" strokeWidth="8" strokeLinecap="round" fill="none" strokeOpacity="0.8" />
       <path ref={setRef("crownC")} d="M 400 560 C 400 500 400 440 400 390 C 400 350 400 310 400 280" stroke="#6B8F4E" strokeWidth="7" strokeLinecap="round" fill="none" strokeOpacity="0.7" />
+      </g>
 
       {/* ═══ FOLIAGE CLUSTERS ═══ */}
       {/* Lower branch foliage */}
-      <g opacity={op(0.30)} style={{ transition: "opacity 0.5s" }}>
+      <g opacity={op(0.45)} style={{ transition: "opacity 0.5s" }}>
         {[[20, 1638], [70, 1650], [90, 1572], [130, 1615]].map(([cx, cy], i) => (
           <ellipse key={`fL1-${i}`} cx={cx} cy={cy} rx={30 + i * 5} ry={18 + i * 3} fill="#6B8F4E" fillOpacity={0.16 + i * 0.02} transform={`rotate(${-15 + i * 8},${cx},${cy})`} />
         ))}
@@ -195,7 +228,7 @@ function TreeSVG({ progress }: { progress: number }) {
       </g>
 
       {/* Upper branch foliage */}
-      <g opacity={op(0.44)} style={{ transition: "opacity 0.5s" }}>
+      <g opacity={op(0.25)} style={{ transition: "opacity 0.5s" }}>
         {[[15, 1228], [60, 1240], [60, 1152], [120, 1180]].map(([cx, cy], i) => (
           <ellipse key={`fL2-${i}`} cx={cx} cy={cy} rx={32 + i * 4} ry={18 + i * 2} fill="#6B8F4E" fillOpacity={0.15 + i * 0.02} transform={`rotate(${-12 + i * 7},${cx},${cy})`} />
         ))}
@@ -205,7 +238,7 @@ function TreeSVG({ progress }: { progress: number }) {
       </g>
 
       {/* Canopy foliage — lush */}
-      <g opacity={op(0.58)} style={{ transition: "opacity 0.6s" }}>
+      <g opacity={op(0.10)} style={{ transition: "opacity 0.6s" }}>
         {[
           [35, 902, 40, 24], [100, 912, 36, 20], [50, 686, 38, 22], [200, 698, 34, 18],
           [772, 806, 38, 22], [700, 816, 32, 18], [748, 608, 36, 20], [650, 618, 30, 16],
@@ -216,7 +249,7 @@ function TreeSVG({ progress }: { progress: number }) {
       </g>
 
       {/* Crown foliage — dense canopy top */}
-      <g opacity={op(0.76)} style={{ transition: "opacity 0.6s" }}>
+      <g opacity={op(0.00)} style={{ transition: "opacity 0.6s" }}>
         {[
           [250, 430, 55, 32], [400, 340, 60, 35], [550, 410, 52, 30],
           [320, 370, 45, 26], [480, 360, 48, 28], [400, 290, 42, 24],
@@ -233,14 +266,14 @@ function TreeSVG({ progress }: { progress: number }) {
 
       {/* ═══ INDIVIDUAL LEAF SHAPES ═══ */}
       {[
-        { cx: 90, cy: 1640, r: -30, p: 0.32 }, { cx: 740, cy: 1520, r: 20, p: 0.36 },
-        { cx: 55, cy: 1235, r: -18, p: 0.46 }, { cx: 760, cy: 1090, r: 14, p: 0.50 },
-        { cx: 170, cy: 910, r: -22, p: 0.60 }, { cx: 640, cy: 810, r: 16, p: 0.64 },
-        { cx: 130, cy: 695, r: -14, p: 0.68 }, { cx: 680, cy: 615, r: 10, p: 0.70 },
-        { cx: 240, cy: 440, r: -8, p: 0.80 }, { cx: 560, cy: 420, r: 12, p: 0.82 },
-        { cx: 350, cy: 330, r: -6, p: 0.84 }, { cx: 450, cy: 320, r: 8, p: 0.85 },
-        { cx: 400, cy: 275, r: 0, p: 0.88 }, { cx: 310, cy: 380, r: -15, p: 0.83 },
-        { cx: 490, cy: 370, r: 18, p: 0.84 },
+        { cx: 90, cy: 1640, r: -30, p: 0.48 }, { cx: 740, cy: 1520, r: 20, p: 0.46 },
+        { cx: 55, cy: 1235, r: -18, p: 0.35 }, { cx: 760, cy: 1090, r: 14, p: 0.30 },
+        { cx: 170, cy: 910, r: -22, p: 0.20 }, { cx: 640, cy: 810, r: 16, p: 0.16 },
+        { cx: 130, cy: 695, r: -14, p: 0.12 }, { cx: 680, cy: 615, r: 10, p: 0.10 },
+        { cx: 240, cy: 440, r: -8, p: 0.05 }, { cx: 560, cy: 420, r: 12, p: 0.04 },
+        { cx: 350, cy: 330, r: -6, p: 0.02 }, { cx: 450, cy: 320, r: 8, p: 0.02 },
+        { cx: 400, cy: 275, r: 0, p: 0.00 }, { cx: 310, cy: 380, r: -15, p: 0.03 },
+        { cx: 490, cy: 370, r: 18, p: 0.03 },
       ].map(({ cx, cy, r, p }, i) => (
         <g key={`lf-${i}`} opacity={op(p, 12)} style={{ transition: "opacity 0.3s" }}>
           <path d={`M ${cx} ${cy} Q ${cx + 10} ${cy - 16} ${cx + 20} ${cy} Q ${cx + 10} ${cy + 7} ${cx} ${cy}`}
@@ -654,6 +687,9 @@ export default function Home() {
                 <span>Stellar Network</span><span className="h-4 w-px bg-[var(--faded-sage)]" /><span>Freighter Wallet</span><span className="h-4 w-px bg-[var(--faded-sage)]" /><span>Soroban Smart Contracts</span>
               </div>
               <p className="text-[10px] text-[var(--stone)]/50 handwritten text-base text-center">Built on the Stellar blockchain — empowering trust in decentralised finance</p>
+              <p className="text-xs text-[var(--stone)]/80 mt-2 font-mono-data uppercase tracking-widest text-center">
+                Developed by <a href="https://harshal.great-site.net/" target="_blank" rel="noopener noreferrer" className="text-[var(--forest)] hover:text-[#3d5c3b] font-bold transition-colors">Harshal</a>
+              </p>
               <div className="scroll-progress-bar">
                 <div className="scroll-progress-fill" style={{ width: `${scrollProgress * 100}%` }} />
               </div>

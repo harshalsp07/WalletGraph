@@ -26,6 +26,26 @@ export const metadata: Metadata = {
   title: "WalletGraph — On-Chain Wallet Reputation",
   description:
     "A decentralized, on-chain reputation layer for Stellar wallets. Register, endorse, and report wallets — immutably on the blockchain.",
+  keywords: ["Stellar", "Wallet", "Reputation", "Blockchain", "Soroban", "Crypto", "Trust", "Web3", "WalletGraph", "On-Chain Dashboard"],
+  authors: [{ name: "Harshal", url: "https://harshal.great-site.net/" }],
+  creator: "Harshal",
+  publisher: "WalletGraph",
+  metadataBase: new URL("https://harshal.great-site.net/"),
+  openGraph: {
+    title: "WalletGraph — On-Chain Wallet Reputation",
+    description: "A decentralized, on-chain reputation layer for Stellar wallets.",
+    url: "https://harshal.great-site.net/",
+    siteName: "WalletGraph",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "WalletGraph — On-Chain Wallet Reputation",
+    description: "A decentralized, on-chain reputation layer for Stellar wallets.",
+  },
+  verification: {
+    google: "71AvwCTLNtia6Tt3dvKFdDDWFxZjI6KYiL8Xrdz2X5U",
+  },
 };
 
 export default function RootLayout({
