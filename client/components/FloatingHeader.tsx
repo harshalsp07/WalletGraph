@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { NETWORK } from "@/hooks/contract";
+import { BrandMarkIcon } from "@/components/BrandMark";
 
 export default function FloatingHeader() {
   const [scrolled, setScrolled] = useState(false);
@@ -24,14 +25,11 @@ export default function FloatingHeader() {
             : ""
         }`}
       >
-        <Link href="/" className="flex items-center gap-3 group">
-          <div className="relative">
-            <div className="absolute inset-0 bg-[var(--forest)]/20 blur-[8px] rounded-xl group-hover:bg-[var(--forest)]/40 transition-colors duration-500" />
-            <div className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[var(--forest)] to-[var(--moss)] shadow-[inset_0_2px_4px_rgba(255,255,255,0.15),inset_0_-2px_4px_rgba(0,0,0,0.15),0_4px_12px_rgba(75,110,72,0.3)]">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                <path d="M9 12l2 2 4-4" />
-              </svg>
+        <Link href="/" className="flex items-center gap-3.5 group">
+          <div className="relative shrink-0">
+            <div className="absolute -inset-1 bg-[var(--forest)]/15 blur-[10px] rounded-2xl group-hover:bg-[var(--forest)]/28 transition-colors duration-500" />
+            <div className="relative rounded-xl shadow-[0_6px_20px_rgba(75,110,72,0.22),0_2px_6px_rgba(44,44,43,0.06)] ring-1 ring-white/50 overflow-hidden">
+              <BrandMarkIcon size={40} />
             </div>
           </div>
           

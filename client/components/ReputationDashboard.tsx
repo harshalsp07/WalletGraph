@@ -557,7 +557,8 @@ export default function ReputationDashboard({ walletAddress, onConnect, isConnec
   return (
     <div ref={cardRef} className="w-full max-w-2xl" style={{ opacity: 0 }}>
       {/* Main Card */}
-      <div className="card-botanical overflow-hidden">
+      <div className="card-botanical shadow-paper-lg overflow-hidden relative">
+        <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-[var(--forest)]/25 via-[var(--sage)]/30 to-[var(--terra)]/20 pointer-events-none z-10" />
         {/* Header */}
         <div className="flex items-center justify-between border-b border-[var(--faded-sage)] px-6 py-4">
           <div className="flex items-center gap-3">

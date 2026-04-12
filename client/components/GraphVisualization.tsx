@@ -33,32 +33,34 @@ interface GraphNode {
   targetX: number;
   targetY: number;
   radius: number;
+  layer: number;
 }
-
-interface NodePosition {
-  x: number;
-  y: number;
-}
-
-// ── Constants ────────────────────────────────────────────────────
 
 const CENTER_RADIUS = 58;
 const NODE_RADIUS = 32;
-const ORBIT_RADIUS_ENDORSE = 220;
-const ORBIT_RADIUS_REPORT = 220;
-const SPRING_STRENGTH = 0.04;
-const DAMPING = 0.85;
-const REPULSION = 2000;
+const SPRING_STRENGTH = 0.035;
+const DAMPING = 0.82;
+const REPULSION = 2500;
 const MAX_NODES_PER_TYPE = 12;
 
-// ── Ink Path Generator ──────────────────────────────────────────
+interface BranchData {
+  id: string;
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+  width: number;
+  seed: number;
+  layer: number;
+}
 
-function generateInkPath(
+function generateBranchPath(
   x1: number,
   y1: number,
   x2: number,
   y2: number,
-  seed: number
+  seed: number,
+  isMain: boolean
 ): string {
   const midX = (x1 + x2) / 2;
   const midY = (y1 + y2) / 2;
@@ -68,15 +70,27 @@ function generateInkPath(
   const perpX = -dy / len;
   const perpY = dx / len;
 
-  const wobble1 = ((seed * 7) % 11 - 5) * 1.5;
-  const wobble2 = ((seed * 13) % 9 - 4) * 1.2;
+  const wobble1 = ((seed * 7) % 11 - 5) * (isMain ? 2 : 1.2);
+  const wobble2 = ((seed * 13) % 9 - 4) * (isMain ? 1.8 : 1);
 
-  const cp1x = x1 + (x2 - x1) * 0.3 + perpX * wobble1;
-  const cp1y = y1 + (y2 - y1) * 0.3 + perpY * wobble1;
-  const cp2x = x1 + (x2 - x1) * 0.7 + perpX * wobble2;
-  const cp2y = y1 + (y2 - y1) * 0.7 + perpY * wobble2;
+  const cp1x = x1 + (x2 - x1) * 0.25 + perpX * wobble1;
+  const cp1y = y1 + (y2 - y1) * 0.25 + perpY * wobble1;
+  const cp2x = x1 + (x2 - x1) * 0.75 + perpX * wobble2;
+  const cp2y = y1 + (y2 - y1) * 0.75 + perpY * wobble2;
 
   return `M ${x1} ${y1} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${x2} ${y2}`;
+}
+
+// ── Ink Path Generator (Organic Branch-Like) ─────────────────────
+
+function generateInkPath(
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  seed: number
+): string {
+  return generateBranchPath(x1, y1, x2, y2, seed, false);
 }
 
 // ── Score Arc Generator ─────────────────────────────────────────
@@ -120,7 +134,8 @@ export default function GraphVisualization({
   const [containerSize, setContainerSize] = useState({ width: 900, height: 700 });
   const [selectedNode, setSelectedNode] = useState<{
     node: GraphNode;
-    position: NodePosition;
+    /** Screen-space anchor for the detail card (not SVG user units) */
+    anchor: { x: number; y: number };
   } | null>(null);
   const [hoveredNode, setHoveredNode] = useState<string | null>(null);
   const [nodesReady, setNodesReady] = useState(false);
@@ -178,7 +193,7 @@ export default function GraphVisualization({
   useEffect(() => {
     const newNodes: GraphNode[] = [];
 
-    // Center node
+    // Center node (the "root" of our tree)
     newNodes.push({
       id: "center",
       walletId: reputation?.wallet_id || 0,
@@ -190,17 +205,23 @@ export default function GraphVisualization({
       targetX: centerX,
       targetY: centerY,
       radius: CENTER_RADIUS,
+      layer: 0,
     });
 
-    // Endorsement nodes — left semi-circle
-    endorsements.forEach((log, index) => {
-      const angle =
-        -140 + (280 / (endorsements.length + 1)) * (index + 1) - 70;
-      const rad = (angle * Math.PI) / 180;
-      const targetX = centerX + Math.cos(rad) * ORBIT_RADIUS_ENDORSE;
-      const targetY = centerY + Math.sin(rad) * ORBIT_RADIUS_ENDORSE;
+    const totalNodes = endorsements.length + reports.length;
+    const baseRadius = Math.max(180, 60 + totalNodes * 15);
+    const layerSpread = 55;
 
-      // Start at center for animation
+    endorsements.forEach((log, index) => {
+      const total = endorsements.length;
+      const layer = Math.floor(index / 6);
+      const angleOffset = ((seed: number) => ((seed * 7) % 17 - 8) * 3)(index);
+      const baseAngle = -130 + (160 / (total + 1)) * (index + 1);
+      const angle = ((baseAngle + angleOffset) * Math.PI) / 180;
+      const radius = baseRadius + layer * layerSpread + ((seed: number) => (seed * 13) % 23)(index) * 8;
+      const targetX = centerX + Math.cos(angle) * radius;
+      const targetY = centerY + Math.sin(angle) * radius;
+
       newNodes.push({
         id: `end-${log.log_id}`,
         walletId: log.target_wallet_id,
@@ -213,15 +234,19 @@ export default function GraphVisualization({
         targetX,
         targetY,
         radius: NODE_RADIUS,
+        layer,
       });
     });
 
-    // Report nodes — right semi-circle
     reports.forEach((log, index) => {
-      const angle = 40 + (100 / (reports.length + 1)) * (index + 1);
-      const rad = (angle * Math.PI) / 180;
-      const targetX = centerX + Math.cos(rad) * ORBIT_RADIUS_REPORT;
-      const targetY = centerY + Math.sin(rad) * ORBIT_RADIUS_REPORT;
+      const total = reports.length;
+      const layer = Math.floor(index / 6);
+      const angleOffset = ((seed: number) => ((seed * 11) % 19 - 9) * 3)(index);
+      const baseAngle = 50 + (100 / (total + 1)) * (index + 1);
+      const angle = ((baseAngle + angleOffset) * Math.PI) / 180;
+      const radius = baseRadius + layer * layerSpread + ((seed: number) => (seed * 17) % 29)(index) * 8;
+      const targetX = centerX + Math.cos(angle) * radius;
+      const targetY = centerY + Math.sin(angle) * radius;
 
       newNodes.push({
         id: `report-${log.log_id}`,
@@ -235,6 +260,7 @@ export default function GraphVisualization({
         targetX,
         targetY,
         radius: NODE_RADIUS,
+        layer,
       });
     });
 
@@ -397,13 +423,26 @@ export default function GraphVisualization({
 
   // ── Click handler ─────────────────────────────────────────────
 
-  const handleNodeClick = useCallback((node: GraphNode) => {
-    if (node.type === "center") return;
-    setSelectedNode({
-      node,
-      position: { x: node.x, y: node.y },
-    });
+  const svgNodeToClient = useCallback((x: number, y: number) => {
+    const svg = svgRef.current;
+    if (!svg) return { x: 0, y: 0 };
+    const pt = svg.createSVGPoint();
+    pt.x = x;
+    pt.y = y;
+    const ctm = svg.getScreenCTM();
+    if (!ctm) return { x: 0, y: 0 };
+    const p = pt.matrixTransform(ctm);
+    return { x: p.x, y: p.y };
   }, []);
+
+  const handleNodeClick = useCallback(
+    (node: GraphNode) => {
+      if (node.type === "center") return;
+      const anchor = svgNodeToClient(node.x, node.y);
+      setSelectedNode({ node, anchor });
+    },
+    [svgNodeToClient]
+  );
 
   // ── Score visuals ─────────────────────────────────────────────
 
@@ -433,14 +472,24 @@ export default function GraphVisualization({
       className="w-full h-screen relative"
       style={{ cursor: isPanning ? "grabbing" : "grab" }}
     >
-      {/* Paper texture background */}
+      {/* Nature-inspired forest background */}
       <div
         className="absolute inset-0 pointer-events-none"
         style={{
           background: `
-            radial-gradient(ellipse at 30% 40%, rgba(75, 110, 72, 0.03) 0%, transparent 60%),
-            radial-gradient(ellipse at 70% 60%, rgba(160, 82, 45, 0.02) 0%, transparent 50%)
+            radial-gradient(ellipse at 50% 0%, rgba(75, 110, 72, 0.06) 0%, transparent 50%),
+            radial-gradient(ellipse at 20% 80%, rgba(107, 143, 78, 0.04) 0%, transparent 40%),
+            radial-gradient(ellipse at 80% 70%, rgba(160, 82, 45, 0.03) 0%, transparent 35%),
+            radial-gradient(ellipse at 50% 100%, rgba(178, 172, 136, 0.08) 0%, transparent 50%)
           `,
+        }}
+      />
+      
+      {/* Ground/roots texture */}
+      <div
+        className="absolute bottom-0 left-0 right-0 h-32 pointer-events-none"
+        style={{
+          background: `linear-gradient(to top, rgba(178, 172, 136, 0.06) 0%, transparent 100%)`,
         }}
       />
 
@@ -499,28 +548,88 @@ export default function GraphVisualization({
             </feMerge>
           </filter>
 
+          {/* Organic bark texture for branches */}
+          <filter id="bark-texture" x="-5%" y="-5%" width="110%" height="110%">
+            <feTurbulence
+              type="fractalNoise"
+              baseFrequency="0.05"
+              numOctaves="3"
+              result="noise"
+            />
+            <feDisplacementMap
+              in="SourceGraphic"
+              in2="noise"
+              scale="1.5"
+              xChannelSelector="R"
+              yChannelSelector="G"
+            />
+          </filter>
+
+          {/* Leaf shape for endorsements */}
+          <filter id="leaf-filter" x="-20%" y="-20%" width="140%" height="140%">
+            <feTurbulence
+              type="fractalNoise"
+              baseFrequency="0.08"
+              numOctaves="2"
+              result="noise"
+            />
+            <feDisplacementMap
+              in="SourceGraphic"
+              in2="noise"
+              scale="2"
+            />
+          </filter>
+
+          {/* Soft nature glow */}
+          <filter id="nature-glow" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur stdDeviation="8" result="blur" />
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+
           {/* Gradients */}
           <radialGradient id="glow-forest" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stopColor="var(--forest)" stopOpacity="0.25" />
+            <stop offset="0%" stopColor="var(--forest)" stopOpacity="0.3" />
+            <stop offset="60%" stopColor="var(--moss)" stopOpacity="0.15" />
             <stop offset="100%" stopColor="var(--forest)" stopOpacity="0" />
           </radialGradient>
 
           <radialGradient id="glow-terra" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stopColor="var(--terra)" stopOpacity="0.25" />
+            <stop offset="0%" stopColor="var(--terra)" stopOpacity="0.3" />
+            <stop offset="60%" stopColor="#c4754a" stopOpacity="0.15" />
             <stop offset="100%" stopColor="var(--terra)" stopOpacity="0" />
           </radialGradient>
 
+          {/* Branch-like gradient lines - organic nature feel */}
           <linearGradient id="line-forest" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="var(--forest)" stopOpacity="0.15" />
-            <stop offset="50%" stopColor="var(--forest)" stopOpacity="0.5" />
-            <stop offset="100%" stopColor="var(--forest)" stopOpacity="0.3" />
+            <stop offset="0%" stopColor="var(--forest)" stopOpacity="0.08" />
+            <stop offset="30%" stopColor="var(--forest)" stopOpacity="0.4" />
+            <stop offset="70%" stopColor="var(--moss)" stopOpacity="0.5" />
+            <stop offset="100%" stopColor="var(--forest)" stopOpacity="0.25" />
           </linearGradient>
 
           <linearGradient id="line-terra" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="var(--terra)" stopOpacity="0.15" />
-            <stop offset="50%" stopColor="var(--terra)" stopOpacity="0.5" />
-            <stop offset="100%" stopColor="var(--terra)" stopOpacity="0.3" />
+            <stop offset="0%" stopColor="var(--terra)" stopOpacity="0.08" />
+            <stop offset="30%" stopColor="var(--terra)" stopOpacity="0.4" />
+            <stop offset="70%" stopColor="#c4754a" stopOpacity="0.5" />
+            <stop offset="100%" stopColor="var(--terra)" stopOpacity="0.25" />
           </linearGradient>
+
+          {/* Center node gradient - like tree trunk */}
+          <radialGradient id="trunk-gradient" cx="30%" cy="30%" r="70%">
+            <stop offset="0%" stopColor="var(--warm-cream)" />
+            <stop offset="70%" stopColor="var(--light-sage)" />
+            <stop offset="100%" stopColor="var(--faded-sage)" />
+          </radialGradient>
+
+          {/* Leaf node gradient */}
+          <radialGradient id="leaf-gradient" cx="30%" cy="30%" r="70%">
+            <stop offset="0%" stopColor="var(--warm-cream)" />
+            <stop offset="100%" stopColor="var(--light-sage)" />
+          </radialGradient>
         </defs>
 
         {/* Grid dots background */}
@@ -542,47 +651,87 @@ export default function GraphVisualization({
           fill="url(#grid-dots)"
         />
 
-        {/* Connection lines */}
+        {/* Organic branch-like connections */}
         {currentNodes
           .filter((n) => n.type !== "center")
-          .map((node) => {
+          .map((node, idx) => {
             const center = currentNodes[0];
             const isFocused =
               hoveredNode === node.id ||
               selectedNode?.node.id === node.id;
             const isEndorsement = node.type === "endorsement";
             const seed = node.log?.log_id || 0;
+            const layer = node.layer || 0;
+            const layerWidth = 1.2 + layer * 0.3;
 
             return (
               <g key={`line-${node.id}`}>
-                {/* Connection glow on hover */}
+                {/* Branch shadow/depth */}
+                <path
+                  d={generateBranchPath(
+                    center.x,
+                    center.y,
+                    node.x,
+                    node.y,
+                    seed,
+                    true
+                  )}
+                  fill="none"
+                  stroke="rgba(44,44,43,0.03)"
+                  strokeWidth={layerWidth * 3}
+                  strokeLinecap="round"
+                />
+                
+                {/* Secondary branch layer */}
+                <path
+                  d={generateBranchPath(
+                    center.x,
+                    center.y,
+                    node.x,
+                    node.y,
+                    seed + 5,
+                    false
+                  )}
+                  fill="none"
+                  stroke={
+                    isEndorsement ? "var(--moss)" : "var(--terra)"
+                  }
+                  strokeOpacity="0.08"
+                  strokeWidth={layerWidth * 1.8}
+                  strokeLinecap="round"
+                />
+
+                {/* Main branch connection */}
                 {isFocused && (
                   <path
-                    d={generateInkPath(
+                    d={generateBranchPath(
                       center.x,
                       center.y,
                       node.x,
                       node.y,
-                      seed
+                      seed,
+                      true
                     )}
                     fill="none"
                     stroke={
                       isEndorsement ? "var(--forest)" : "var(--terra)"
                     }
-                    strokeWidth="6"
-                    strokeOpacity="0.12"
+                    strokeWidth="5"
+                    strokeOpacity="0.15"
                     strokeLinecap="round"
+                    filter="url(#nature-glow)"
                   />
                 )}
 
                 {/* Main ink line */}
                 <path
-                  d={generateInkPath(
+                  d={generateBranchPath(
                     center.x,
                     center.y,
                     node.x,
                     node.y,
-                    seed
+                    seed,
+                    false
                   )}
                   fill="none"
                   stroke={
@@ -590,7 +739,7 @@ export default function GraphVisualization({
                       ? "url(#line-forest)"
                       : "url(#line-terra)"
                   }
-                  strokeWidth={isFocused ? 2.5 : 1.5}
+                  strokeWidth={isFocused ? 2.8 : layerWidth}
                   strokeLinecap="round"
                   className="graph-ink-line"
                   style={{
@@ -598,24 +747,25 @@ export default function GraphVisualization({
                   }}
                 />
 
-                {/* Arrow dot at node end */}
+                {/* Branch node "fruit" indicator */}
                 <circle
                   cx={node.x}
                   cy={node.y}
-                  r={3}
+                  r={isFocused ? 4 : 2.5}
                   fill={
                     isEndorsement ? "var(--forest)" : "var(--terra)"
                   }
-                  opacity={isFocused ? 0.8 : 0.4}
+                  opacity={isFocused ? 0.9 : 0.5}
                 />
               </g>
             );
           })}
 
-        {/* Endorsement & Report nodes */}
+        {/* Endorsement & Report nodes - Nature "leaves" and "fruits" */}
         {currentNodes
           .filter((n) => n.type !== "center")
           .map((node) => {
+            const center = currentNodes[0];
             const isEndorsement = node.type === "endorsement";
             const isHovered = hoveredNode === node.id;
             const isSelected = selectedNode?.node.id === node.id;
@@ -623,6 +773,16 @@ export default function GraphVisualization({
             const color = isEndorsement
               ? "var(--forest)"
               : "var(--terra)";
+            const layer = node.layer || 0;
+            const layerScale = 1 - layer * 0.08;
+            const rdx = node.x - center.x;
+            const rdy = node.y - center.y;
+            const rlen = Math.hypot(rdx, rdy) || 1;
+            const ux = rdx / rlen;
+            const uy = rdy / rlen;
+            const tipDist = NODE_RADIUS + 26;
+            const tipX = ux * tipDist;
+            const tipY = uy * tipDist;
 
             return (
               <g
@@ -635,42 +795,42 @@ export default function GraphVisualization({
                 }}
                 onMouseEnter={() => setHoveredNode(node.id)}
                 onMouseLeave={() => setHoveredNode(null)}
-                transform={`translate(${node.x}, ${node.y})`}
+                transform={`translate(${node.x}, ${node.y}) scale(${layerScale})`}
               >
-                {/* Hover glow */}
+                {/* Outer aura/glow */}
                 <circle
-                  r={NODE_RADIUS + 8}
+                  r={NODE_RADIUS + 12}
                   fill={
                     isEndorsement
                       ? "url(#glow-forest)"
                       : "url(#glow-terra)"
                   }
-                  opacity={isFocused ? 1 : 0}
-                  style={{ transition: "opacity 0.25s ease" }}
+                  opacity={isFocused ? 0.9 : 0.3}
+                  style={{ transition: "opacity 0.3s ease" }}
                 />
 
-                {/* Node background */}
+                {/* Node background - leaf-like shape */}
                 <circle
                   r={NODE_RADIUS}
-                  fill="var(--warm-cream)"
+                  fill="url(#leaf-gradient)"
                   stroke={color}
-                  strokeWidth={isFocused ? 2.5 : 1.5}
+                  strokeWidth={isFocused ? 2.5 : 1.2}
                   filter="url(#node-shadow)"
                   style={{
-                    transition: "all 0.2s ease",
-                    transform: isFocused ? "scale(1.08)" : "scale(1)",
+                    transition: "all 0.25s ease",
+                    transform: isFocused ? "scale(1.12)" : "scale(1)",
                     transformOrigin: "center",
                   }}
                 />
 
-                {/* Inner ring */}
+                {/* Inner decorative ring - leaf vein pattern */}
                 <circle
-                  r={NODE_RADIUS - 5}
+                  r={NODE_RADIUS - 6}
                   fill="none"
                   stroke={color}
-                  strokeWidth="0.5"
-                  strokeOpacity="0.2"
-                  strokeDasharray="3 3"
+                  strokeWidth="0.4"
+                  strokeOpacity="0.15"
+                  strokeDasharray="4 4"
                 />
 
                 {/* Icon */}
@@ -706,37 +866,48 @@ export default function GraphVisualization({
                   </g>
                 )}
 
-                {/* Wallet ID label */}
+                {/* Wallet ID — below the circle so stems and hub labels stay readable */}
                 <text
                   textAnchor="middle"
-                  y={14}
+                  y={NODE_RADIUS + 12}
                   className="font-mono-data"
-                  style={{ fontSize: "8px", fontWeight: 600 }}
+                  style={{
+                    fontSize: "9px",
+                    fontWeight: 700,
+                    paintOrder: "stroke fill",
+                    stroke: "var(--warm-cream)",
+                    strokeWidth: "4px",
+                    strokeLinejoin: "round",
+                  }}
                   fill={color}
                 >
                   #{node.walletId}
                 </text>
 
-                {/* Hover tooltip */}
+                {/* Hover preview: offset outward along the branch, away from the hub */}
                 {isFocused && node.log && (
-                  <g transform={`translate(0, ${-NODE_RADIUS - 16})`}>
+                  <g transform={`translate(${tipX}, ${tipY})`}>
                     <rect
-                      x={-60}
-                      y={-22}
-                      width={120}
-                      height={22}
-                      rx={6}
-                      fill="var(--dark-ink)"
-                      fillOpacity="0.9"
+                      x={-68}
+                      y={-13}
+                      width={136}
+                      height={26}
+                      rx={8}
+                      fill="var(--warm-cream)"
+                      fillOpacity="0.96"
+                      stroke={color}
+                      strokeWidth="1"
+                      strokeOpacity="0.35"
+                      filter="url(#node-shadow)"
                     />
                     <text
                       textAnchor="middle"
-                      y={-7}
-                      fill="white"
-                      style={{ fontSize: "9px" }}
+                      y={4}
+                      fill="var(--dark-ink)"
+                      style={{ fontSize: "10px", fontWeight: 600 }}
                     >
-                      {node.log.reason.length > 18
-                        ? node.log.reason.slice(0, 18) + "…"
+                      {node.log.reason.length > 22
+                        ? node.log.reason.slice(0, 22) + "…"
                         : node.log.reason}
                     </text>
                   </g>
@@ -745,84 +916,92 @@ export default function GraphVisualization({
             );
           })}
 
-        {/* Center node */}
+        {/* Center node - the "tree trunk" root */}
         {currentNodes.length > 0 && (
           <g transform={`translate(${currentNodes[0].x}, ${currentNodes[0].y})`}>
-            {/* Outer glow ring */}
+            {/* Outer aura - like canopy glow */}
             <circle
-              r={CENTER_RADIUS + 20}
+              r={CENTER_RADIUS + 28}
               fill={
                 score >= 0 ? "url(#glow-forest)" : "url(#glow-terra)"
               }
-              opacity="0.6"
+              opacity="0.5"
             >
               <animate
                 attributeName="r"
-                values={`${CENTER_RADIUS + 16};${CENTER_RADIUS + 22};${CENTER_RADIUS + 16}`}
-                dur="3s"
+                values={`${CENTER_RADIUS + 20};${CENTER_RADIUS + 32};${CENTER_RADIUS + 20}`}
+                dur="4s"
                 repeatCount="indefinite"
               />
               <animate
                 attributeName="opacity"
-                values="0.4;0.7;0.4"
-                dur="3s"
+                values="0.35;0.6;0.35"
+                dur="4s"
                 repeatCount="indefinite"
               />
             </circle>
 
-            {/* Score arc — endorsement portion (green) */}
+            {/* Inner subtle glow */}
+            <circle
+              r={CENTER_RADIUS + 12}
+              fill={
+                score >= 0 ? "var(--forest)" : "var(--terra)"
+              }
+              opacity="0.06"
+            />
+
+            {/* Score rings - like tree rings */}
             {totalInteractions > 0 && (
               <>
                 <path
-                  d={describeArc(0, 0, CENTER_RADIUS + 6, 0, endorseAngle)}
+                  d={describeArc(0, 0, CENTER_RADIUS + 8, 0, endorseAngle)}
                   fill="none"
                   stroke="var(--forest)"
-                  strokeWidth="4"
+                  strokeWidth="3.5"
                   strokeLinecap="round"
-                  opacity="0.6"
+                  opacity="0.5"
                 />
-                {/* Score arc — report portion (red) */}
                 <path
                   d={describeArc(
                     0,
                     0,
-                    CENTER_RADIUS + 6,
+                    CENTER_RADIUS + 8,
                     endorseAngle,
                     360
                   )}
                   fill="none"
                   stroke="var(--terra)"
-                  strokeWidth="4"
+                  strokeWidth="3.5"
                   strokeLinecap="round"
-                  opacity="0.6"
+                  opacity="0.5"
                 />
               </>
             )}
 
-            {/* Main circle */}
+            {/* Main circle - trunk-like gradient */}
             <circle
               r={CENTER_RADIUS}
-              fill="var(--warm-cream)"
+              fill="url(#trunk-gradient)"
               stroke={scoreColor}
               strokeWidth="2.5"
               filter="url(#node-shadow)"
             />
 
-            {/* Inner decorative ring */}
+            {/* Inner ring - bark texture effect */}
             <circle
-              r={CENTER_RADIUS - 8}
+              r={CENTER_RADIUS - 10}
               fill="none"
               stroke={scoreColor}
-              strokeWidth="0.5"
-              strokeOpacity="0.2"
-              strokeDasharray="4 4"
+              strokeWidth="0.4"
+              strokeOpacity="0.15"
+              strokeDasharray="5 5"
             />
 
             {/* Wallet ID */}
             <text
               textAnchor="middle"
               dominantBaseline="middle"
-              y={-12}
+              y={-14}
               className="font-mono-data"
               style={{ fontSize: "11px", fontWeight: 700 }}
               fill="var(--dark-ink)"
@@ -830,7 +1009,7 @@ export default function GraphVisualization({
               WALLET #{reputation?.wallet_id || "?"}
             </text>
 
-            {/* Score */}
+            {/* Score - main trunk display */}
             <text
               textAnchor="middle"
               dominantBaseline="middle"
@@ -866,7 +1045,7 @@ export default function GraphVisualization({
 
       {/* ── Legend Panel ── */}
       <div className="absolute bottom-6 left-6 z-10">
-        <div className="card-botanical px-5 py-4 space-y-3 backdrop-blur-sm">
+        <div className="card-botanical shadow-paper-lg px-5 py-4 space-y-3 backdrop-blur-sm">
           <p
             className="text-[9px] font-semibold uppercase tracking-[0.15em] text-[var(--stone)]"
             style={{ marginBottom: 8 }}
@@ -888,23 +1067,31 @@ export default function GraphVisualization({
               </span>
             </div>
           </div>
-          <div className="flex items-center gap-4 pt-1 border-t border-[var(--faded-sage)]/50 text-[10px] text-[var(--stone)] font-mono-data">
-            <span className="text-[var(--forest)] font-bold">
-              +{endorsements.length}
-            </span>
-            <span className="text-[var(--terra)] font-bold">
-              −{reports.length}
-            </span>
-            <span>= {score}</span>
+          <div className="pt-1 border-t border-[var(--faded-sage)]/50 space-y-1">
+            <p className="text-[9px] text-[var(--stone)] uppercase tracking-wider">
+              On-chain ledger
+            </p>
+            <div className="flex items-center gap-3 text-[10px] text-[var(--stone)] font-mono-data">
+              <span className="text-[var(--forest)] font-bold">
+                +{endorseCount}
+              </span>
+              <span className="text-[var(--terra)] font-bold">
+                −{reportCount}
+              </span>
+              <span className="text-[var(--dark-ink)] font-semibold">
+                → {score}
+              </span>
+            </div>
           </div>
         </div>
       </div>
 
       {/* ── Stats Panel ── */}
       {reputation && (
-        <div className="absolute top-6 right-6 z-10">
-          <div className="card-botanical px-5 py-4 space-y-2">
-            <div className="flex items-center gap-2 mb-3">
+        <div className="absolute top-6 right-6 z-10 max-w-[220px]">
+          <div className="card-botanical shadow-paper-lg px-5 py-5 space-y-3 relative overflow-hidden">
+            <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-[var(--forest)]/30 to-transparent pointer-events-none" />
+            <div className="flex items-center gap-2 mb-1">
               <span
                 className={`h-2.5 w-2.5 rounded-full ${
                   reputation.is_active
@@ -917,42 +1104,42 @@ export default function GraphVisualization({
               </span>
             </div>
 
-            <div className="grid grid-cols-2 gap-x-6 gap-y-2">
-              <div>
-                <p className="text-[9px] uppercase tracking-wider text-[var(--stone)]">
+            <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+              <div className="rounded-lg bg-[var(--parchment)]/60 px-3 py-2 border border-[var(--faded-sage)]/35">
+                <p className="text-[9px] uppercase tracking-wider text-[var(--stone)] mb-0.5">
                   Score
                 </p>
                 <p
-                  className="text-lg font-heading font-bold"
+                  className="text-xl font-heading font-bold tabular-nums leading-tight"
                   style={{ color: scoreColor }}
                 >
                   {score > 0 ? `+${score}` : score}
                 </p>
               </div>
-              <div>
-                <p className="text-[9px] uppercase tracking-wider text-[var(--stone)]">
+              <div className="rounded-lg bg-[var(--parchment)]/60 px-3 py-2 border border-[var(--faded-sage)]/35">
+                <p className="text-[9px] uppercase tracking-wider text-[var(--stone)] mb-0.5">
                   Status
                 </p>
                 <p
-                  className="text-lg font-heading font-bold"
+                  className="text-lg font-heading font-bold leading-tight"
                   style={{ color: scoreColor }}
                 >
                   {scoreLabel}
                 </p>
               </div>
-              <div>
-                <p className="text-[9px] uppercase tracking-wider text-[var(--stone)]">
+              <div className="rounded-lg bg-[var(--forest)]/6 px-3 py-2 border border-[var(--forest)]/15">
+                <p className="text-[9px] uppercase tracking-wider text-[var(--stone)] mb-0.5">
                   Endorsements
                 </p>
-                <p className="text-sm font-mono-data font-bold text-[var(--forest)]">
+                <p className="text-base font-mono-data font-bold text-[var(--forest)] tabular-nums">
                   {endorseCount}
                 </p>
               </div>
-              <div>
-                <p className="text-[9px] uppercase tracking-wider text-[var(--stone)]">
+              <div className="rounded-lg bg-[var(--terra)]/6 px-3 py-2 border border-[var(--terra)]/15">
+                <p className="text-[9px] uppercase tracking-wider text-[var(--stone)] mb-0.5">
                   Reports
                 </p>
-                <p className="text-sm font-mono-data font-bold text-[var(--terra)]">
+                <p className="text-base font-mono-data font-bold text-[var(--terra)] tabular-nums">
                   {reportCount}
                 </p>
               </div>
@@ -1065,7 +1252,7 @@ export default function GraphVisualization({
         <StickyNote
           log={selectedNode.node.log!}
           type={selectedNode.node.type}
-          position={selectedNode.position}
+          anchor={selectedNode.anchor}
           onClose={() => setSelectedNode(null)}
         />
       )}

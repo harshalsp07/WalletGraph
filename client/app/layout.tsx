@@ -24,6 +24,10 @@ import { ToastProvider } from "@/context/ToastContext";
 
 export const metadata: Metadata = {
   title: "WalletGraph — On-Chain Wallet Reputation",
+  icons: {
+    icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
+    apple: "/icon.svg",
+  },
   description:
     "A decentralized, on-chain reputation layer for Stellar wallets. Register, endorse, and report wallets — immutably on the blockchain.",
   keywords: ["Stellar", "Wallet", "Reputation", "Blockchain", "Soroban", "Crypto", "Trust", "Web3", "WalletGraph", "On-Chain Dashboard"],

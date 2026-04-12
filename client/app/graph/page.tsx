@@ -263,7 +263,7 @@ function GraphPageContent() {
         {/* Graph Search Bar */}
         <form 
           onSubmit={handleSearchSubmit}
-          className="pointer-events-auto flex items-center bg-[var(--warm-cream)]/90 backdrop-blur-md border border-[var(--faded-sage)]/70 rounded-2xl shadow-[0_4px_16px_rgba(44,44,43,0.06)] overflow-hidden w-80 transition-all focus-within:ring-2 focus-within:ring-[var(--sage)]/50 focus-within:shadow-[0_8px_24px_rgba(75,110,72,0.12)] hover:border-[var(--sage)]"
+          className="pointer-events-auto flex items-center bg-[var(--warm-cream)]/95 backdrop-blur-xl border border-[var(--faded-sage)]/80 rounded-2xl shadow-[0_4px_24px_rgba(44,44,43,0.07),0_1px_0_rgba(255,255,255,0.85)_inset] overflow-hidden w-[min(100%,20rem)] transition-all focus-within:ring-2 focus-within:ring-[var(--forest)]/25 focus-within:border-[var(--forest)]/35 focus-within:shadow-[0_12px_40px_rgba(75,110,72,0.14)] hover:border-[var(--sage)]"
         >
           <div className="pl-4 pr-2 text-[var(--stone)]">
             <SearchIcon />
@@ -279,10 +279,11 @@ function GraphPageContent() {
 
         {/* Selected Wallet Detail HUD */}
         {reputation && (
-          <div className="pointer-events-auto w-80 bg-[var(--warm-cream)]/90 backdrop-blur-md border border-[var(--faded-sage)]/70 rounded-2xl shadow-[0_8px_32px_rgba(44,44,43,0.08)] p-5 animate-fade-in-up">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-heading font-bold text-lg text-[var(--dark-ink)]">Node Focus</h3>
-              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[var(--forest)]/10 border border-[var(--forest)]/20">
+          <div className="pointer-events-auto w-[min(100%,20rem)] bg-[var(--warm-cream)]/95 backdrop-blur-xl border border-[var(--faded-sage)]/80 rounded-2xl shadow-[0_8px_40px_rgba(44,44,43,0.1),0_1px_0_rgba(255,255,255,0.9)_inset] p-6 animate-fade-in-up relative overflow-hidden">
+            <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-[var(--forest)]/35 to-transparent pointer-events-none" />
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="font-heading font-bold text-xl tracking-tight text-[var(--dark-ink)]">Node Focus</h3>
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[var(--forest)]/10 border border-[var(--forest)]/25 shadow-[inset_0_1px_0_rgba(255,255,255,0.5)]">
                 <span className="relative flex h-1.5 w-1.5">
                   <span className={`absolute inline-flex h-full w-full rounded-full opacity-75 ${reputation.is_active ? "bg-[var(--forest)] animate-ping" : "bg-[var(--terra)]"}`} />
                   <span className={`relative inline-flex h-1.5 w-1.5 rounded-full ${reputation.is_active ? "bg-[var(--forest)]" : "bg-[var(--terra)]"}`} />
@@ -293,25 +294,25 @@ function GraphPageContent() {
               </div>
             </div>
             
-            <div className="space-y-4">
+            <div className="space-y-5 relative">
               <div>
-                <p className="text-[10px] font-mono-data text-[var(--stone)] uppercase tracking-wider mb-1">Wallet ID</p>
-                <p className="text-xl font-mono-data font-bold text-[var(--forest)]">#{reputation.wallet_id}</p>
+                <p className="text-[10px] font-mono-data text-[var(--stone)] uppercase tracking-[0.12em] mb-1.5">Wallet ID</p>
+                <p className="text-2xl font-mono-data font-bold text-[var(--forest)] tracking-tight">#{reputation.wallet_id}</p>
               </div>
               
               <div className="grid grid-cols-2 gap-3">
-                <div className="bg-[var(--parchment)] rounded-xl p-3 border border-[var(--faded-sage)]/30">
-                  <p className="text-[10px] font-mono-data text-[var(--stone)] uppercase tracking-wider mb-1">Reputation</p>
-                  <p className="text-2xl font-heading font-black text-[var(--dark-ink)]">{reputation.score}</p>
+                <div className="bg-gradient-to-br from-[var(--parchment)] to-[var(--warm-cream)] rounded-xl p-4 border border-[var(--faded-sage)]/40 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)]">
+                  <p className="text-[10px] font-mono-data text-[var(--stone)] uppercase tracking-[0.12em] mb-2">Reputation</p>
+                  <p className="text-3xl font-heading font-black text-[var(--dark-ink)] leading-none">{reputation.score}</p>
                 </div>
-                <div className="flex flex-col gap-2">
-                  <div className="bg-[var(--parchment)] rounded-lg p-2 px-3 border border-[var(--moss)]/20 flex justify-between items-center">
+                <div className="flex flex-col gap-2.5">
+                  <div className="bg-[var(--parchment)]/90 rounded-xl p-2.5 px-3 border border-[var(--moss)]/25 flex justify-between items-center shadow-[inset_0_1px_0_rgba(255,255,255,0.5)]">
                     <span className="text-[10px] font-mono-data text-[var(--moss)] uppercase tracking-wider">Endorses</span>
-                    <span className="font-bold text-[var(--moss)] text-sm">{reputation.endorsement_count}</span>
+                    <span className="font-bold text-[var(--moss)] text-base tabular-nums">{reputation.endorsement_count}</span>
                   </div>
-                  <div className="bg-[var(--parchment)] rounded-lg p-2 px-3 border border-[var(--terra)]/20 flex justify-between items-center">
+                  <div className="bg-[var(--parchment)]/90 rounded-xl p-2.5 px-3 border border-[var(--terra)]/25 flex justify-between items-center shadow-[inset_0_1px_0_rgba(255,255,255,0.5)]">
                     <span className="text-[10px] font-mono-data text-[var(--terra)] uppercase tracking-wider">Reports</span>
-                    <span className="font-bold text-[var(--terra)] text-sm">{reputation.report_count}</span>
+                    <span className="font-bold text-[var(--terra)] text-base tabular-nums">{reputation.report_count}</span>
                   </div>
                 </div>
               </div>

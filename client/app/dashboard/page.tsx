@@ -31,9 +31,10 @@ function WelcomeHeader({ address }: { address: string }) {
   
   return (
     <div className="w-full max-w-2xl mb-8 animate-fade-in-up">
-      <div className="card-botanical p-6 paper-shadow transition-transform duration-500 hover:scale-[1.02]">
-        <div className="flex items-center gap-4">
-          <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-[var(--forest)] via-[var(--moss)] to-[var(--sage)] p-[2px] shadow-[0_4px_12px_rgba(75,110,72,0.25)]">
+      <div className="card-botanical shadow-paper-lg p-7 paper-shadow transition-transform duration-500 hover:scale-[1.01] relative overflow-hidden">
+        <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-[var(--forest)]/25 via-[var(--moss)]/20 to-transparent pointer-events-none" />
+        <div className="flex items-center gap-5">
+          <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-[var(--forest)] via-[var(--moss)] to-[var(--sage)] p-[2px] shadow-[0_6px_20px_rgba(75,110,72,0.28)] ring-1 ring-white/40">
             <div className="flex h-full w-full items-center justify-center rounded-xl bg-[var(--warm-cream)]">
               <span className="text-lg font-bold text-[var(--dark-ink)] font-mono-data">
                 {address.slice(0, 2)}
@@ -41,7 +42,7 @@ function WelcomeHeader({ address }: { address: string }) {
             </div>
           </div>
           <div>
-            <h1 className="text-xl font-heading font-bold text-[var(--dark-ink)] embossed">
+            <h1 className="text-2xl font-heading font-bold text-[var(--dark-ink)] embossed tracking-tight">
               Welcome back
             </h1>
             <p className="font-mono-data text-sm text-[var(--stone)]">
@@ -96,7 +97,8 @@ function QuickStats({ stats }: { stats: GlobalStats }) {
   
   return (
     <div className="grid grid-cols-3 gap-4">
-      <div className="card-botanical p-4 text-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg cursor-default">
+      <div className="card-botanical shadow-paper-lg p-5 text-center transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_12px_36px_rgba(44,44,43,0.08)] cursor-default relative overflow-hidden">
+        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[var(--faded-sage)] to-transparent opacity-80 pointer-events-none" />
         <div className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-[var(--warm-cream)] border-2 border-[var(--faded-sage)] text-[var(--forest)] mb-2 shadow-inner transition-transform duration-300 hover:rotate-12 hover:scale-110">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
@@ -109,7 +111,8 @@ function QuickStats({ stats }: { stats: GlobalStats }) {
         <p className="text-[10px] uppercase tracking-wider text-[var(--stone)] font-semibold mt-1">Wallets</p>
       </div>
       
-      <div className="card-botanical p-4 text-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg cursor-default">
+      <div className="card-botanical shadow-paper-lg p-5 text-center transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_12px_36px_rgba(44,44,43,0.08)] cursor-default relative overflow-hidden">
+        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[var(--moss)]/40 to-transparent opacity-90 pointer-events-none" />
         <div className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-[var(--warm-cream)] border-2 border-[var(--faded-sage)] text-[var(--forest)] mb-2 shadow-inner transition-transform duration-300 hover:rotate-12 hover:scale-110">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M7 10v12" />
@@ -120,7 +123,8 @@ function QuickStats({ stats }: { stats: GlobalStats }) {
         <p className="text-[10px] uppercase tracking-wider text-[var(--stone)] font-semibold mt-1">Endorsements</p>
       </div>
       
-      <div className="card-botanical p-4 text-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg cursor-default">
+      <div className="card-botanical shadow-paper-lg p-5 text-center transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_12px_36px_rgba(44,44,43,0.08)] cursor-default relative overflow-hidden">
+        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[var(--terra)]/35 to-transparent opacity-90 pointer-events-none" />
         <div className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-[var(--warm-cream)] border-2 border-[var(--faded-sage)] text-[var(--terra)] mb-2 shadow-inner transition-transform duration-300 hover:-rotate-12 hover:scale-110">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />

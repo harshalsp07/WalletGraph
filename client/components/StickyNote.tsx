@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { animate } from "animejs";
 
 interface InteractionLog {
@@ -14,25 +14,48 @@ interface InteractionLog {
 interface StickyNoteProps {
   log: InteractionLog;
   type: "endorsement" | "report" | "center";
-  position: { x: number; y: number };
+  /** Viewport coordinates (pixels) where the graph node sits — not SVG user units */
+  anchor: { x: number; y: number };
   onClose: () => void;
 }
 
-export default function StickyNote({ log, type, position, onClose }: StickyNoteProps) {
+export default function StickyNote({ log, type, anchor, onClose }: StickyNoteProps) {
   const noteRef = useRef<HTMLDivElement>(null);
   const rotation = (log.log_id % 7) - 3;
+  const [placed, setPlaced] = useState(false);
+
+  useLayoutEffect(() => {
+    const el = noteRef.current;
+    if (!el) return;
+    const pad = 12;
+    const gap = 14;
+    const w = el.offsetWidth || 256;
+    const h = el.offsetHeight || 200;
+
+    let left = anchor.x + gap;
+    let top = anchor.y - h / 2;
+
+    if (left + w > window.innerWidth - pad) {
+      left = anchor.x - w - gap;
+    }
+    if (left < pad) left = pad;
+    top = Math.max(pad, Math.min(top, window.innerHeight - h - pad));
+
+    el.style.left = `${left}px`;
+    el.style.top = `${top}px`;
+    setPlaced(true);
+  }, [anchor.x, anchor.y]);
 
   useEffect(() => {
-    if (noteRef.current) {
-      noteRef.current.style.transform = `translate(${position.x}px, ${position.y}px) scale(0) rotate(${rotation}deg)`;
-      animate(noteRef.current, {
-        scale: [0, 1],
-        rotate: [rotation - 5, rotation],
-        duration: 400,
-        easing: "easeOutBack",
-      });
-    }
-  }, [position, rotation]);
+    const el = noteRef.current;
+    if (!el || !placed) return;
+    animate(el, {
+      scale: [0.88, 1],
+      rotate: [rotation - 4, rotation],
+      duration: 380,
+      easing: "easeOutBack",
+    });
+  }, [placed, rotation]);
 
   const formatDate = (timestamp: number) => {
     if (timestamp === 0) return "Unknown";
@@ -51,57 +74,69 @@ export default function StickyNote({ log, type, position, onClose }: StickyNoteP
       <div
         className="fixed inset-0 z-40"
         onClick={onClose}
-        style={{ background: "transparent" }}
+        style={{ background: "rgba(44, 44, 43, 0.04)" }}
+        aria-hidden
       />
       <div
         ref={noteRef}
-        className="fixed z-50 w-64"
+        className="fixed z-50 w-72 max-w-[calc(100vw-24px)]"
         style={{
           background: bgColor,
-          border: `2px solid ${borderColor}`,
-          transform: `translate(${position.x}px, ${position.y}px) rotate(${rotation}deg)`,
-          boxShadow: "0 8px 32px rgba(44, 44, 43, 0.15), 0 2px 8px rgba(44, 44, 43, 0.1)",
+          border: `1.5px solid ${borderColor}`,
+          transform: `rotate(${rotation}deg)`,
+          transformOrigin: "center center",
+          boxShadow:
+            "0 12px 40px rgba(44, 44, 43, 0.14), 0 4px 12px rgba(44, 44, 43, 0.08), inset 0 1px 0 rgba(255,255,255,0.65)",
           fontFamily: "var(--font-sans)",
+          left: -9999,
+          top: -9999,
+          opacity: placed ? 1 : 0,
+          borderRadius: "14px",
         }}
+        role="dialog"
+        aria-labelledby="sticky-note-title"
       >
         <div
-          className="absolute top-0 left-0 right-0 h-2"
+          className="absolute top-0 left-0 right-0 h-1.5 rounded-t-[13px]"
           style={{
-            background: `linear-gradient(90deg, ${accentColor}30, ${accentColor}10, ${accentColor}30)`,
+            background: `linear-gradient(90deg, ${accentColor}45, ${accentColor}18, ${accentColor}45)`,
           }}
         />
 
         <button
+          type="button"
           onClick={onClose}
-          className="absolute top-2 right-2 w-6 h-6 rounded-full flex items-center justify-center text-[var(--stone)] hover:text-[var(--dark-ink)] hover:bg-[var(--parchment)] transition-all cursor-pointer"
-          style={{ fontSize: "14px", lineHeight: 1 }}
+          className="absolute top-2.5 right-2.5 w-7 h-7 rounded-full flex items-center justify-center text-[var(--stone)] hover:text-[var(--dark-ink)] hover:bg-[var(--parchment)] transition-all cursor-pointer"
+          style={{ fontSize: "18px", lineHeight: 1 }}
+          aria-label="Close"
         >
           &times;
         </button>
 
-        <div className="pt-6 px-4 pb-4">
+        <div className="pt-7 px-4 pb-4">
           <div className="flex items-center gap-2 mb-3">
             <div
-              className="w-6 h-6 rounded-full flex items-center justify-center"
-              style={{ background: `${accentColor}20` }}
+              className="w-7 h-7 rounded-full flex items-center justify-center"
+              style={{ background: `${accentColor}22` }}
             >
               {isCenter ? (
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={accentColor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={accentColor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
                 </svg>
               ) : isEndorsement ? (
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={accentColor} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={accentColor} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M7 10v12" />
                   <path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z" />
                 </svg>
               ) : (
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={accentColor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={accentColor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
                   <line x1="4" y1="22" x2="4" y2="15" />
                 </svg>
               )}
             </div>
             <span
+              id="sticky-note-title"
               className="text-xs font-semibold uppercase tracking-wider"
               style={{ color: accentColor }}
             >
@@ -118,7 +153,7 @@ export default function StickyNote({ log, type, position, onClose }: StickyNoteP
 
           <div
             className="h-px w-full mb-3"
-            style={{ background: `linear-gradient(90deg, transparent, ${accentColor}30, transparent)` }}
+            style={{ background: `linear-gradient(90deg, transparent, ${accentColor}35, transparent)` }}
           />
 
           <p
@@ -134,7 +169,7 @@ export default function StickyNote({ log, type, position, onClose }: StickyNoteP
 
           <div
             className="pt-3 border-t"
-            style={{ borderColor: `${accentColor}20` }}
+            style={{ borderColor: `${accentColor}22` }}
           >
             <div className="flex items-center justify-between">
               <span
@@ -154,11 +189,11 @@ export default function StickyNote({ log, type, position, onClose }: StickyNoteP
         </div>
 
         <div
-          className="absolute -bottom-1 left-4 w-3 h-3"
+          className="absolute -bottom-1.5 left-5 w-3 h-3"
           style={{
             background: bgColor,
             transform: "rotate(45deg)",
-            border: `2px solid ${borderColor}`,
+            border: `1.5px solid ${borderColor}`,
             borderTop: "none",
             borderLeft: "none",
           }}
