@@ -7,8 +7,9 @@ import {
   viewWalletReputation,
   viewWalletHistory,
   checkConnection,
-  connectWallet,
+  getActiveWalletProvider,
   getWalletAddress,
+  type WalletProvider,
 } from "@/hooks/contract";
 import GraphVisualization from "@/components/GraphVisualization";
 import DockHeader from "@/components/DockHeader";
@@ -48,6 +49,7 @@ function GraphPageContent() {
   const { showToast } = useToast();
   
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
+  const [walletProvider, setWalletProvider] = useState<WalletProvider | null>(null);
   const [searchInput, setSearchInput] = useState("");
   const [isConnecting, setIsConnecting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -62,6 +64,7 @@ function GraphPageContent() {
     const initWallet = async () => {
       const connected = await checkConnection();
       if (connected) {
+        setWalletProvider(getActiveWalletProvider());
         const addr = await getWalletAddress();
         setWalletAddress(addr);
       }
@@ -169,18 +172,12 @@ function GraphPageContent() {
 
   const handleConnect = useCallback(async () => {
     setIsConnecting(true);
-    try {
-      const addr = await connectWallet();
-      setWalletAddress(addr);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to connect");
-    } finally {
-      setIsConnecting(false);
-    }
-  }, []);
+    router.push("/login");
+  }, [router]);
 
   const handleDisconnect = useCallback(() => {
     setWalletAddress(null);
+    setWalletProvider(null);
   }, []);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
@@ -211,7 +208,7 @@ function GraphPageContent() {
           <p className="text-sm text-[var(--stone)] font-medium">Loading graph...</p>
         </div>
         <FloatingHeader />
-        <DockHeader walletAddress={walletAddress} onConnect={handleConnect} onDisconnect={handleDisconnect} isConnecting={isConnecting} />
+        <DockHeader walletAddress={walletAddress} walletProvider={walletProvider} onConnect={handleConnect} onDisconnect={handleDisconnect} isConnecting={isConnecting} />
       </div>
     );
   }
@@ -239,7 +236,7 @@ function GraphPageContent() {
           </div>
         </div>
         <FloatingHeader />
-        <DockHeader walletAddress={walletAddress} onConnect={handleConnect} onDisconnect={handleDisconnect} isConnecting={isConnecting} />
+        <DockHeader walletAddress={walletAddress} walletProvider={walletProvider} onConnect={handleConnect} onDisconnect={handleDisconnect} isConnecting={isConnecting} />
       </div>
     );
   }
@@ -322,7 +319,7 @@ function GraphPageContent() {
       </div>
 
       <FloatingHeader />
-      <DockHeader walletAddress={walletAddress} onConnect={handleConnect} onDisconnect={handleDisconnect} isConnecting={isConnecting} />
+      <DockHeader walletAddress={walletAddress} walletProvider={walletProvider} onConnect={handleConnect} onDisconnect={handleDisconnect} isConnecting={isConnecting} />
     </div>
   );
 }

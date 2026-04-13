@@ -3,9 +3,12 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import type { WalletProvider } from "@/hooks/contract";
+import { getWalletOption } from "@/lib/wallets";
 
 interface DockHeaderProps {
   walletAddress: string | null;
+  walletProvider?: WalletProvider | null;
   onConnect: () => void;
   onDisconnect: () => void;
   isConnecting: boolean;
@@ -13,10 +16,12 @@ interface DockHeaderProps {
 
 export default function DockHeader({
   walletAddress,
+  walletProvider,
   onConnect,
   onDisconnect: _onDisconnect,
   isConnecting,
 }: DockHeaderProps) {
+  void _onDisconnect;
   const pathname = usePathname();
   const [mounted, setMounted] = useState(false);
 
@@ -36,6 +41,7 @@ export default function DockHeader({
   const isActive = (path: string) => pathname === path;
 
   const truncate = (addr: string) => `${addr.slice(0, 6)}…${addr.slice(-4)}`;
+  const providerOption = getWalletOption(walletProvider ?? null);
 
   const navItems = [
     {
@@ -150,9 +156,16 @@ export default function DockHeader({
                 </span>
               </div>
             </div>
-            <span className="text-xs font-mono-data text-[var(--dark-ink)]/60 hidden sm:inline">
-              {truncate(walletAddress)}
-            </span>
+            <div className="hidden sm:flex sm:flex-col sm:gap-0.5">
+              <span className="text-xs font-mono-data text-[var(--dark-ink)]/60">
+                {truncate(walletAddress)}
+              </span>
+              {providerOption && (
+                <span className="text-[9px] uppercase tracking-[0.16em] text-[var(--stone)]">
+                  {providerOption.name}
+                </span>
+              )}
+            </div>
           </div>
         )}
       </div>

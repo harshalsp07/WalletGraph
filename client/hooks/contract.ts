@@ -67,6 +67,16 @@ type InjectedXBull = {
   signTransaction?: (xdr: string, opts?: { network: string }) => Promise<{ signedTxXdr?: string; xdr?: string } | string>;
 };
 
+export type WalletProviderStatus = {
+  provider: WalletProvider;
+  available: boolean;
+  canConnect: boolean;
+  canSign: boolean;
+  comingSoon: boolean;
+  label: string;
+  message: string;
+};
+
 const ACTIVE_WALLET_KEY = "walletgraph.activeWallet";
 
 function getRabetProvider(): InjectedRabet | null {
@@ -79,7 +89,7 @@ function getXBullProvider(): InjectedXBull | null {
   return ((window as typeof window & { xBullSDK?: InjectedXBull }).xBullSDK ?? null);
 }
 
-function getActiveWalletProvider(): WalletProvider {
+export function getActiveWalletProvider(): WalletProvider {
   if (typeof window === "undefined") return "freighter";
   const stored = window.localStorage.getItem(ACTIVE_WALLET_KEY);
   if (stored === "freighter" || stored === "rabet" || stored === "xbull" || stored === "lobstr") {
@@ -93,12 +103,73 @@ function setActiveWalletProvider(provider: WalletProvider) {
   window.localStorage.setItem(ACTIVE_WALLET_KEY, provider);
 }
 
+export function getWalletProviderStatus(provider: WalletProvider): WalletProviderStatus {
+  if (provider === "freighter") {
+    return {
+      provider,
+      available: true,
+      canConnect: true,
+      canSign: true,
+      comingSoon: false,
+      label: "Recommended",
+      message: "Best end-to-end support for WalletGraph on-chain actions.",
+    };
+  }
+
+  if (provider === "rabet") {
+    const rabet = getRabetProvider();
+    const installed = !!rabet;
+    const canSign = !!rabet?.sign;
+    return {
+      provider,
+      available: installed,
+      canConnect: installed,
+      canSign,
+      comingSoon: false,
+      label: installed ? (canSign ? "Installed" : "Installed with limited signing") : "Install required",
+      message: installed
+        ? canSign
+          ? "Rabet is available and can attempt transaction signing."
+          : "Rabet is available for login, but transaction signing may be unavailable in this browser."
+        : "Install the Rabet extension to continue with this wallet.",
+    };
+  }
+
+  if (provider === "xbull") {
+    const xbull = getXBullProvider();
+    const installed = !!xbull;
+    const canSign = !!xbull?.signTransaction;
+    return {
+      provider,
+      available: installed,
+      canConnect: installed,
+      canSign,
+      comingSoon: false,
+      label: installed ? (canSign ? "Installed" : "Installed with limited signing") : "Install required",
+      message: installed
+        ? canSign
+          ? "xBull is available and exposes transaction signing."
+          : "xBull is available for connection, but signing support was not detected."
+        : "Install the xBull extension to continue with this wallet.",
+    };
+  }
+
+  return {
+    provider,
+    available: false,
+    canConnect: false,
+    canSign: false,
+    comingSoon: true,
+    label: "Coming soon",
+    message: "LOBSTR login is planned, but browser-based auth is not available yet.",
+  };
+}
+
 // ============================================================
 // Wallet Helpers
 // ============================================================
 
-export async function checkConnection(): Promise<boolean> {
-  const provider = getActiveWalletProvider();
+export async function checkConnection(provider: WalletProvider = getActiveWalletProvider()): Promise<boolean> {
   if (provider === "freighter") {
     const result = await isConnected();
     return result.isConnected;
@@ -106,12 +177,24 @@ export async function checkConnection(): Promise<boolean> {
 
   if (provider === "rabet") {
     const rabet = getRabetProvider();
-    return !!rabet;
+    if (!rabet?.getAddress) return false;
+    try {
+      const address = await rabet.getAddress();
+      return !!address;
+    } catch {
+      return false;
+    }
   }
 
   if (provider === "xbull") {
     const xbull = getXBullProvider();
-    return !!xbull;
+    if (!xbull?.getAddress) return false;
+    try {
+      const address = await xbull.getAddress();
+      return !!address;
+    } catch {
+      return false;
+    }
   }
 
   return false;
@@ -119,6 +202,11 @@ export async function checkConnection(): Promise<boolean> {
 
 export async function connectWallet(provider: WalletProvider = "freighter"): Promise<string> {
   setActiveWalletProvider(provider);
+  const status = getWalletProviderStatus(provider);
+
+  if (status.comingSoon) {
+    throw new Error("LOBSTR support is coming soon. Please choose Freighter, Rabet, or xBull for now.");
+  }
 
   if (provider === "rabet") {
     const rabet = getRabetProvider();
@@ -156,10 +244,6 @@ export async function connectWallet(provider: WalletProvider = "freighter"): Pro
     return address;
   }
 
-  if (provider === "lobstr") {
-    throw new Error("LOBSTR browser wallet flow is not available yet.");
-  }
-
   const connResult = await isConnected();
   if (!connResult.isConnected) {
     throw new Error("Freighter extension is not installed or not available.");
@@ -178,9 +262,8 @@ export async function connectWallet(provider: WalletProvider = "freighter"): Pro
   return address;
 }
 
-export async function getWalletAddress(): Promise<string | null> {
+export async function getWalletAddress(provider: WalletProvider = getActiveWalletProvider()): Promise<string | null> {
   try {
-    const provider = getActiveWalletProvider();
     if (provider === "rabet") {
       const rabet = getRabetProvider();
       if (!rabet?.getAddress) return null;
@@ -193,6 +276,10 @@ export async function getWalletAddress(): Promise<string | null> {
       if (!xbull?.getAddress) return null;
       const address = await xbull.getAddress();
       return address || null;
+    }
+
+    if (provider === "lobstr") {
+      return null;
     }
 
     const connResult = await isConnected();

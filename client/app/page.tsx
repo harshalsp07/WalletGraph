@@ -8,8 +8,10 @@ import DockHeader from "@/components/DockHeader";
 import FloatingHeader from "@/components/FloatingHeader";
 import {
   getWalletAddress,
+  getActiveWalletProvider,
   checkConnection,
   viewGlobalStats,
+  type WalletProvider,
 } from "@/hooks/contract";
 
 /* ──────────────────────────────────────────
@@ -460,11 +462,12 @@ function StatCounter({ value, label }: { value: number; label: string }) {
 export default function Home() {
   const router = useRouter();
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
+  const [walletProvider, setWalletProvider] = useState<WalletProvider | null>(null);
   const [globalStats, setGlobalStats] = useState<{ total_wallets: number; total_endorsements: number; total_reports: number } | null>(null);
   const scrollProgress = useScrollProgress();
 
   useEffect(() => {
-    (async () => { try { if (await checkConnection()) { const addr = await getWalletAddress(); if (addr) setWalletAddress(addr); } } catch {} })();
+    (async () => { try { if (await checkConnection()) { setWalletProvider(getActiveWalletProvider()); const addr = await getWalletAddress(); if (addr) setWalletAddress(addr); } } catch {} })();
   }, []);
 
   useEffect(() => {
@@ -480,7 +483,7 @@ export default function Home() {
   return (
     <div className="relative flex min-h-screen flex-col bg-[var(--parchment)]">
       <FloatingHeader />
-      <DockHeader walletAddress={walletAddress} onConnect={handleConnect} onDisconnect={handleDisconnect} isConnecting={false} />
+      <DockHeader walletAddress={walletAddress} walletProvider={walletProvider} onConnect={handleConnect} onDisconnect={handleDisconnect} isConnecting={false} />
 
       {/* ambient blobs */}
       <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
@@ -597,7 +600,7 @@ export default function Home() {
 
             <div className="canopy-steps">
               {[
-                { num: 1, title: "Connect Wallet", desc: "Link your Freighter wallet to access the reputation system" },
+                { num: 1, title: "Choose Wallet", desc: "Pick Freighter, Rabet, xBull, or future supported wallets from the provider login hub" },
                 { num: 2, title: "Register", desc: "Create your on-chain identity with a unique wallet ID" },
                 { num: 3, title: "Build Reputation", desc: "Get endorsed or report others to establish trust" },
               ].map(({ num, title, desc }, i) => (
@@ -681,7 +684,7 @@ export default function Home() {
             <div className="footer-ground-line" />
             <div className="flex flex-col items-center gap-5">
               <div className="flex items-center gap-5 text-[11px] text-[var(--stone)] font-mono-data flex-wrap justify-center">
-                <span>Stellar Network</span><span className="h-4 w-px bg-[var(--faded-sage)]" /><span>Freighter Wallet</span><span className="h-4 w-px bg-[var(--faded-sage)]" /><span>Soroban Smart Contracts</span>
+                <span>Stellar Network</span><span className="h-4 w-px bg-[var(--faded-sage)]" /><span>Multi-wallet login</span><span className="h-4 w-px bg-[var(--faded-sage)]" /><span>Soroban Smart Contracts</span>
               </div>
               <p className="text-[10px] text-[var(--stone)]/50 handwritten text-base text-center">Built on the Stellar blockchain — empowering trust in decentralised finance</p>
               <p className="text-xs text-[var(--stone)]/80 mt-2 font-mono-data uppercase tracking-widest text-center">

@@ -8,10 +8,11 @@ import FloatingHeader from "@/components/FloatingHeader";
 import ReputationDashboard from "@/components/ReputationDashboard";
 import OnboardingModal, { isOnboardingComplete } from "@/components/OnboardingModal";
 import {
-  connectWallet,
   checkConnection,
+  getActiveWalletProvider,
   getWalletAddress,
   viewGlobalStats,
+  type WalletProvider,
 } from "@/hooks/contract";
 
 function StatCard({ value, label, icon }: { value: number; label: string; icon: React.ReactNode }) {
@@ -193,6 +194,7 @@ function ParticleField() {
 export default function DashboardPage() {
   const router = useRouter();
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
+  const [walletProvider, setWalletProvider] = useState<WalletProvider | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [globalStats, setGlobalStats] = useState<GlobalStats>({
@@ -205,6 +207,7 @@ export default function DashboardPage() {
     (async () => {
       try {
         if (await checkConnection()) {
+          setWalletProvider(getActiveWalletProvider());
           const addr = await getWalletAddress();
           if (addr) {
             setWalletAddress(addr);
@@ -241,15 +244,12 @@ export default function DashboardPage() {
 
   const handleConnect = useCallback(async () => {
     setIsConnecting(true);
-    try {
-      setWalletAddress(await connectWallet());
-    } catch { /* handled in component */ } finally {
-      setIsConnecting(false);
-    }
-  }, []);
+    router.push("/login");
+  }, [router]);
 
   const handleDisconnect = useCallback(() => {
     setWalletAddress(null);
+    setWalletProvider(null);
     router.push("/");
   }, [router]);
 
@@ -267,6 +267,7 @@ export default function DashboardPage() {
         <FloatingHeader />
         <DockHeader
           walletAddress={null}
+          walletProvider={walletProvider}
           onConnect={handleConnect}
           onDisconnect={handleDisconnect}
           isConnecting={isConnecting}
@@ -295,6 +296,7 @@ export default function DashboardPage() {
       <FloatingHeader />
       <DockHeader
         walletAddress={walletAddress}
+        walletProvider={walletProvider}
         onConnect={handleConnect}
         onDisconnect={handleDisconnect}
         isConnecting={isConnecting}
@@ -326,7 +328,7 @@ export default function DashboardPage() {
           <div className="flex items-center gap-5 text-[11px] text-[var(--stone)] font-mono-data">
             <span>Stellar Network</span>
             <span className="h-4 w-px bg-[var(--faded-sage)]" />
-            <span>Freighter Wallet</span>
+            <span>{walletProvider ? `${walletProvider} wallet` : "Multi-wallet login"}</span>
             <span className="h-4 w-px bg-[var(--faded-sage)]" />
             <span>Soroban Smart Contracts</span>
           </div>
