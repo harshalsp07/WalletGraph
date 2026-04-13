@@ -358,17 +358,9 @@ Implement an optional score decay model where interactions older than a configur
 ### 🌉 Cross-Chain Reputation Bridging
 Explore bridges to import reputation signals from other blockchains (Ethereum ENS scores, Lens Protocol, etc.) via Stellar-compatible oracles, creating a unified multi-chain reputation identity for power users.
 ## Contract Details:
-Contract ID:CA6QNK6HR7NOYC2MF6NUWBWMV4MXE4LKADVWVALSHZ3GRZ3BM52WFXDF 
-<img width="1799" height="880" alt="image" src="https://github.com/user-attachments/assets/d14b3eea-c667-4b76-be8e-37dea77a4ae0" />
-## walkthrough the project 
-Landing page 
-<img width="1239" height="841" alt="image" src="https://github.com/user-attachments/assets/698e88be-383b-45ae-ad98-9b87d6513e37" />
-DashBoard
-<img width="767" height="830" alt="image" src="https://github.com/user-attachments/assets/4152618f-8cea-4001-ad71-9dd8ca5c5f69" />
-In the DashBoard you can -> Endorse the wallet or Report the project 
-<img width="792" height="733" alt="image" src="https://github.com/user-attachments/assets/e4b97e6d-b7a6-4536-9d03-5fffdedb068b" />
-and you can check there credibility of the wallet
-<img width="772" height="788" alt="image" src="https://github.com/user-attachments/assets/a4de4195-ac54-4500-a094-064c2ff735f5" />
+Contract ID:CDHR3VDMHNWYXAF6ZNJEVUQWOU6P7TP45OMWOYM3TLACOZOEOIPJOOSX 
+<img width="1574" height="872" alt="image" src="https://github.com/user-attachments/assets/bbb0f658-7d73-4d2a-a160-e0fa406e95a8" />
+
 
 
 ---
