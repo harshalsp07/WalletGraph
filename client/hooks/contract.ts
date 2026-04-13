@@ -53,16 +53,113 @@ const CONTRACT_ERRORS: Record<number, string> = {
 
 const server = new rpc.Server(RPC_URL);
 
+type WalletProvider = "freighter" | "rabet" | "xbull" | "lobstr";
+
+type InjectedRabet = {
+  connect?: () => Promise<unknown>;
+  getAddress?: () => Promise<string>;
+  sign?: (xdr: string, networkPassphrase: string) => Promise<{ xdr: string } | string>;
+};
+
+type InjectedXBull = {
+  getAddress?: () => Promise<string>;
+  connect?: () => Promise<unknown>;
+  signTransaction?: (xdr: string, opts?: { network: string }) => Promise<{ signedTxXdr?: string; xdr?: string } | string>;
+};
+
+const ACTIVE_WALLET_KEY = "walletgraph.activeWallet";
+
+function getRabetProvider(): InjectedRabet | null {
+  if (typeof window === "undefined") return null;
+  return ((window as typeof window & { rabet?: InjectedRabet }).rabet ?? null);
+}
+
+function getXBullProvider(): InjectedXBull | null {
+  if (typeof window === "undefined") return null;
+  return ((window as typeof window & { xBullSDK?: InjectedXBull }).xBullSDK ?? null);
+}
+
+function getActiveWalletProvider(): WalletProvider {
+  if (typeof window === "undefined") return "freighter";
+  const stored = window.localStorage.getItem(ACTIVE_WALLET_KEY);
+  if (stored === "freighter" || stored === "rabet" || stored === "xbull" || stored === "lobstr") {
+    return stored;
+  }
+  return "freighter";
+}
+
+function setActiveWalletProvider(provider: WalletProvider) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(ACTIVE_WALLET_KEY, provider);
+}
+
 // ============================================================
 // Wallet Helpers
 // ============================================================
 
 export async function checkConnection(): Promise<boolean> {
-  const result = await isConnected();
-  return result.isConnected;
+  const provider = getActiveWalletProvider();
+  if (provider === "freighter") {
+    const result = await isConnected();
+    return result.isConnected;
+  }
+
+  if (provider === "rabet") {
+    const rabet = getRabetProvider();
+    return !!rabet;
+  }
+
+  if (provider === "xbull") {
+    const xbull = getXBullProvider();
+    return !!xbull;
+  }
+
+  return false;
 }
 
-export async function connectWallet(): Promise<string> {
+export async function connectWallet(provider: WalletProvider = "freighter"): Promise<string> {
+  setActiveWalletProvider(provider);
+
+  if (provider === "rabet") {
+    const rabet = getRabetProvider();
+    if (!rabet) {
+      throw new Error("Rabet wallet extension not detected.");
+    }
+    if (rabet.connect) {
+      await rabet.connect();
+    }
+    if (!rabet.getAddress) {
+      throw new Error("Rabet wallet API is missing getAddress().");
+    }
+    const address = await rabet.getAddress();
+    if (!address) {
+      throw new Error("Could not retrieve wallet address from Rabet.");
+    }
+    return address;
+  }
+
+  if (provider === "xbull") {
+    const xbull = getXBullProvider();
+    if (!xbull) {
+      throw new Error("xBull wallet extension not detected.");
+    }
+    if (xbull.connect) {
+      await xbull.connect();
+    }
+    if (!xbull.getAddress) {
+      throw new Error("xBull wallet API is missing getAddress().");
+    }
+    const address = await xbull.getAddress();
+    if (!address) {
+      throw new Error("Could not retrieve wallet address from xBull.");
+    }
+    return address;
+  }
+
+  if (provider === "lobstr") {
+    throw new Error("LOBSTR browser wallet flow is not available yet.");
+  }
+
   const connResult = await isConnected();
   if (!connResult.isConnected) {
     throw new Error("Freighter extension is not installed or not available.");
@@ -83,6 +180,21 @@ export async function connectWallet(): Promise<string> {
 
 export async function getWalletAddress(): Promise<string | null> {
   try {
+    const provider = getActiveWalletProvider();
+    if (provider === "rabet") {
+      const rabet = getRabetProvider();
+      if (!rabet?.getAddress) return null;
+      const address = await rabet.getAddress();
+      return address || null;
+    }
+
+    if (provider === "xbull") {
+      const xbull = getXBullProvider();
+      if (!xbull?.getAddress) return null;
+      const address = await xbull.getAddress();
+      return address || null;
+    }
+
     const connResult = await isConnected();
     if (!connResult.isConnected) return null;
 
@@ -146,9 +258,37 @@ export async function callContract(
 
   const prepared = rpc.assembleTransaction(tx, simulated).build();
 
-  const { signedTxXdr } = await signTransaction(prepared.toXDR(), {
-    networkPassphrase: NETWORK_PASSPHRASE,
-  });
+  const walletProvider = getActiveWalletProvider();
+  let signedTxXdr: string;
+  if (walletProvider === "freighter") {
+    const signedResult = await signTransaction(prepared.toXDR(), {
+      networkPassphrase: NETWORK_PASSPHRASE,
+    });
+    signedTxXdr = signedResult.signedTxXdr;
+  } else if (walletProvider === "rabet") {
+    const rabet = getRabetProvider();
+    if (!rabet?.sign) {
+      throw new Error("Rabet signing is unavailable. Use Freighter for contract interactions.");
+    }
+    const signed = await rabet.sign(prepared.toXDR(), NETWORK_PASSPHRASE);
+    signedTxXdr = typeof signed === "string" ? signed : signed.xdr;
+  } else if (walletProvider === "xbull") {
+    const xbull = getXBullProvider();
+    if (!xbull?.signTransaction) {
+      throw new Error("xBull signing is unavailable. Use Freighter for contract interactions.");
+    }
+    const signed = await xbull.signTransaction(prepared.toXDR(), { network: NETWORK });
+    signedTxXdr =
+      typeof signed === "string"
+        ? signed
+        : (signed.signedTxXdr ?? signed.xdr ?? "");
+  } else {
+    throw new Error("Selected wallet provider cannot sign transactions yet.");
+  }
+
+  if (!signedTxXdr) {
+    throw new Error("Wallet did not return a signed transaction.");
+  }
 
   const txToSubmit = TransactionBuilder.fromXDR(
     signedTxXdr,
@@ -322,4 +462,5 @@ export async function viewInteractionLog(
   );
 }
 
+export type { WalletProvider };
 export { nativeToScVal, scValToNative, Address, xdr };

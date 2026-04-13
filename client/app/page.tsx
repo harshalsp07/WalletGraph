@@ -7,7 +7,6 @@ import { animate, utils, stagger } from "animejs";
 import DockHeader from "@/components/DockHeader";
 import FloatingHeader from "@/components/FloatingHeader";
 import {
-  connectWallet,
   getWalletAddress,
   checkConnection,
   viewGlobalStats,
@@ -461,7 +460,6 @@ function StatCounter({ value, label }: { value: number; label: string }) {
 export default function Home() {
   const router = useRouter();
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
-  const [isConnecting, setIsConnecting] = useState(false);
   const [globalStats, setGlobalStats] = useState<{ total_wallets: number; total_endorsements: number; total_reports: number } | null>(null);
   const scrollProgress = useScrollProgress();
 
@@ -474,8 +472,7 @@ export default function Home() {
   }, []);
 
   const handleConnect = useCallback(async () => {
-    setIsConnecting(true);
-    try { const a = await connectWallet(); setWalletAddress(a); router.push("/login"); } catch {} finally { setIsConnecting(false); }
+    router.push("/login");
   }, [router]);
 
   const handleDisconnect = useCallback(() => setWalletAddress(null), []);
@@ -483,7 +480,7 @@ export default function Home() {
   return (
     <div className="relative flex min-h-screen flex-col bg-[var(--parchment)]">
       <FloatingHeader />
-      <DockHeader walletAddress={walletAddress} onConnect={handleConnect} onDisconnect={handleDisconnect} isConnecting={isConnecting} />
+      <DockHeader walletAddress={walletAddress} onConnect={handleConnect} onDisconnect={handleDisconnect} isConnecting={false} />
 
       {/* ambient blobs */}
       <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
