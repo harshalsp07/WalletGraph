@@ -6,6 +6,7 @@ import { animate, utils } from "animejs";
 import DockHeader from "@/components/DockHeader";
 import FloatingHeader from "@/components/FloatingHeader";
 import ReputationDashboard from "@/components/ReputationDashboard";
+import WalletCockpit from "@/components/WalletCockpit";
 import OnboardingModal, { isOnboardingComplete } from "@/components/OnboardingModal";
 import {
   checkConnection,
@@ -14,18 +15,6 @@ import {
   viewGlobalStats,
   type WalletProvider,
 } from "@/hooks/contract";
-
-function StatCard({ value, label, icon }: { value: number; label: string; icon: React.ReactNode }) {
-  return (
-    <div className="text-center space-y-1">
-      <div className="inline-flex items-center justify-center h-10 w-10 rounded-2xl bg-[var(--warm-cream)] border-2 border-[var(--faded-sage)] text-[var(--forest)] mb-2 shadow-inner">
-        {icon}
-      </div>
-      <p className="text-2xl font-heading font-bold text-[var(--dark-ink)] embossed">{value}</p>
-      <p className="text-[10px] uppercase tracking-wider text-[var(--stone)] font-semibold">{label}</p>
-    </div>
-  );
-}
 
 function WelcomeHeader({ address }: { address: string }) {
   const shortAddress = `${address.slice(0, 6)}…${address.slice(-4)}`;
@@ -57,28 +46,29 @@ function WelcomeHeader({ address }: { address: string }) {
 }
 
 function useAnimatedValue(target: number, duration = 1500) {
-  const [value, setValue] = useState(0);
+  const [value, setValue] = useState(target <= 0 ? target : 0);
   
   useEffect(() => {
+    let rafId: number;
+
     if (target <= 0) {
-      setValue(target);
-      return;
+      rafId = requestAnimationFrame(() => setValue(target));
+      return () => cancelAnimationFrame(rafId);
     }
     
     let start: number | null = null;
-    let rafId: number;
     
-    const animate = (timestamp: number) => {
+    const tick = (timestamp: number) => {
       if (!start) start = timestamp;
       const progress = Math.min((timestamp - start) / duration, 1);
       const eased = 1 - Math.pow(1 - progress, 3);
       setValue(Math.round(eased * target));
       if (progress < 1) {
-        rafId = requestAnimationFrame(animate);
+        rafId = requestAnimationFrame(tick);
       }
     };
     
-    rafId = requestAnimationFrame(animate);
+    rafId = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafId);
   }, [target, duration]);
   
@@ -310,18 +300,55 @@ export default function DashboardPage() {
       )}
 
       <main className="relative z-10 flex flex-1 flex-col items-center px-6 py-10">
+        <div className="w-full max-w-6xl">
         <WelcomeHeader address={walletAddress} />
-        
-        <div className="w-full max-w-2xl mb-6 animate-fade-in-up">
+
+        <div className="mb-6 w-full max-w-2xl animate-fade-in-up">
           <QuickStats stats={globalStats} />
         </div>
 
-        <div className="w-full max-w-2xl animate-fade-in-up-delayed">
-          <ReputationDashboard
-            walletAddress={walletAddress}
-            onConnect={handleConnect}
-            isConnecting={isConnecting}
-          />
+        <div className="animate-fade-in-up-delayed">
+          <WalletCockpit walletAddress={walletAddress} />
+        </div>
+
+        <div className="mt-8 grid gap-6 xl:grid-cols-[1fr_320px]">
+          <div className="min-w-0 animate-fade-in-up-delayed-2">
+            <ReputationDashboard
+              walletAddress={walletAddress}
+              onConnect={handleConnect}
+              isConnecting={isConnecting}
+            />
+          </div>
+
+          <aside className="space-y-6 animate-fade-in-up-delayed-2">
+            <div className="wallet-panel rounded-[1.8rem] p-6">
+              <p className="text-[10px] uppercase tracking-[0.28em] text-[var(--stone)]">Command Notes</p>
+              <h2 className="mt-3 text-2xl font-heading font-bold text-[var(--dark-ink)]">
+                Reputation meets liquidity.
+              </h2>
+              <p className="mt-3 text-sm leading-7 text-[var(--dark-ink)]/75">
+                WalletGraph now lets trust signals and token motion live on the same screen. Check identity posture, send value, and watch both behaviors shape how a wallet feels in the network.
+              </p>
+            </div>
+
+            <div className="wallet-panel rounded-[1.8rem] p-6">
+              <p className="text-[10px] uppercase tracking-[0.28em] text-[var(--stone)]">Flow</p>
+              <div className="mt-4 space-y-3">
+                {[
+                  "Fetch your live XLM balance from Horizon.",
+                  "Approve a signed payment in Freighter, Rabet, or xBull.",
+                  "Review the resulting transaction hash and continue reputation analysis.",
+                ].map((item, index) => (
+                  <div key={item} className="flex items-start gap-3 rounded-2xl bg-white/60 p-3">
+                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--forest)]/10 text-xs font-semibold text-[var(--forest)]">
+                      {index + 1}
+                    </div>
+                    <p className="text-sm leading-6 text-[var(--dark-ink)]/75">{item}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </aside>
         </div>
 
         <footer className="mt-16 flex flex-col items-center gap-5 animate-fade-in">
@@ -336,6 +363,7 @@ export default function DashboardPage() {
             Built on the Stellar blockchain — empowering trust in decentralised finance
           </p>
         </footer>
+        </div>
       </main>
     </div>
   );

@@ -11,6 +11,12 @@ import {
   scValToNative,
   rpc,
   Account,
+  Asset,
+  BASE_FEE,
+  Horizon,
+  Memo,
+  Operation,
+  StrKey,
 } from "@stellar/stellar-sdk";
 import {
   isConnected,
@@ -52,6 +58,7 @@ const CONTRACT_ERRORS: Record<number, string> = {
 // ============================================================
 
 const server = new rpc.Server(RPC_URL);
+const horizonServer = new Horizon.Server(HORIZON_URL);
 
 type WalletProvider = "freighter" | "rabet" | "xbull" | "lobstr";
 
@@ -295,6 +302,142 @@ export async function getWalletAddress(provider: WalletProvider = getActiveWalle
   }
 }
 
+export type XlmBalance = {
+  balance: string;
+  assetType: string;
+  lastModifiedLedger?: number;
+};
+
+export type PaymentResult = {
+  hash: string;
+  successful: boolean;
+  ledger?: number;
+  destination: string;
+  amount: string;
+  memo?: string;
+};
+
+function validateStellarAddress(address: string, label: string) {
+  if (!StrKey.isValidEd25519PublicKey(address)) {
+    throw new Error(`${label} is not a valid Stellar public key.`);
+  }
+}
+
+async function signWalletTransaction(xdr: string): Promise<string> {
+  const walletProvider = getActiveWalletProvider();
+
+  if (walletProvider === "freighter") {
+    const signedResult = await signTransaction(xdr, {
+      networkPassphrase: NETWORK_PASSPHRASE,
+    });
+    return signedResult.signedTxXdr;
+  }
+
+  if (walletProvider === "rabet") {
+    const rabet = getRabetProvider();
+    if (!rabet?.sign) {
+      throw new Error("Rabet signing is unavailable. Use Freighter for transaction signing.");
+    }
+    const signed = await rabet.sign(xdr, NETWORK_PASSPHRASE);
+    return typeof signed === "string" ? signed : signed.xdr;
+  }
+
+  if (walletProvider === "xbull") {
+    const xbull = getXBullProvider();
+    if (!xbull?.signTransaction) {
+      throw new Error("xBull signing is unavailable. Use Freighter for transaction signing.");
+    }
+    const signed = await xbull.signTransaction(xdr, { network: NETWORK });
+    return typeof signed === "string" ? signed : (signed.signedTxXdr ?? signed.xdr ?? "");
+  }
+
+  throw new Error("Selected wallet provider cannot sign transactions yet.");
+}
+
+export async function fetchXlmBalance(address: string): Promise<XlmBalance> {
+  validateStellarAddress(address, "Wallet address");
+
+  try {
+    const account = await horizonServer.loadAccount(address);
+    const nativeBalance = account.balances.find((entry) => entry.asset_type === "native");
+
+    return {
+      balance: nativeBalance?.balance ?? "0",
+      assetType: nativeBalance?.asset_type ?? "native",
+      lastModifiedLedger: account.last_modified_ledger,
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unable to load account balance.";
+    if (message.toLowerCase().includes("not found")) {
+      throw new Error("This wallet is not funded on Stellar testnet yet.");
+    }
+    throw new Error(message);
+  }
+}
+
+export async function sendXlmTransaction(params: {
+  source: string;
+  destination: string;
+  amount: string;
+  memo?: string;
+}): Promise<PaymentResult> {
+  const { source, destination, amount, memo } = params;
+
+  validateStellarAddress(source, "Source wallet");
+  validateStellarAddress(destination, "Destination wallet");
+
+  if (source === destination) {
+    throw new Error("Source and destination wallets must be different.");
+  }
+
+  const normalizedAmount = Number(amount);
+  if (!Number.isFinite(normalizedAmount) || normalizedAmount <= 0) {
+    throw new Error("Amount must be greater than 0.");
+  }
+
+  const sourceAccount = await horizonServer.loadAccount(source);
+
+  try {
+    await horizonServer.loadAccount(destination);
+  } catch {
+    throw new Error("Destination wallet is not funded on Stellar testnet.");
+  }
+
+  const builder = new TransactionBuilder(sourceAccount, {
+    fee: BASE_FEE,
+    networkPassphrase: NETWORK_PASSPHRASE,
+  }).addOperation(
+    Operation.payment({
+      destination,
+      asset: Asset.native(),
+      amount: normalizedAmount.toFixed(7),
+    })
+  );
+
+  if (memo?.trim()) {
+    builder.addMemo(Memo.text(memo.trim().slice(0, 28)));
+  }
+
+  const transaction = builder.setTimeout(120).build();
+  const signedTxXdr = await signWalletTransaction(transaction.toXDR());
+
+  if (!signedTxXdr) {
+    throw new Error("Wallet did not return a signed payment transaction.");
+  }
+
+  const signedTransaction = TransactionBuilder.fromXDR(signedTxXdr, NETWORK_PASSPHRASE);
+  const response = await horizonServer.submitTransaction(signedTransaction);
+
+  return {
+    hash: response.hash,
+    successful: response.successful,
+    ledger: response.ledger,
+    destination,
+    amount: normalizedAmount.toFixed(7),
+    memo: memo?.trim() ? memo.trim().slice(0, 28) : undefined,
+  };
+}
+
 // ============================================================
 // Contract Interaction Helpers
 // ============================================================
@@ -344,34 +487,7 @@ export async function callContract(
   }
 
   const prepared = rpc.assembleTransaction(tx, simulated).build();
-
-  const walletProvider = getActiveWalletProvider();
-  let signedTxXdr: string;
-  if (walletProvider === "freighter") {
-    const signedResult = await signTransaction(prepared.toXDR(), {
-      networkPassphrase: NETWORK_PASSPHRASE,
-    });
-    signedTxXdr = signedResult.signedTxXdr;
-  } else if (walletProvider === "rabet") {
-    const rabet = getRabetProvider();
-    if (!rabet?.sign) {
-      throw new Error("Rabet signing is unavailable. Use Freighter for contract interactions.");
-    }
-    const signed = await rabet.sign(prepared.toXDR(), NETWORK_PASSPHRASE);
-    signedTxXdr = typeof signed === "string" ? signed : signed.xdr;
-  } else if (walletProvider === "xbull") {
-    const xbull = getXBullProvider();
-    if (!xbull?.signTransaction) {
-      throw new Error("xBull signing is unavailable. Use Freighter for contract interactions.");
-    }
-    const signed = await xbull.signTransaction(prepared.toXDR(), { network: NETWORK });
-    signedTxXdr =
-      typeof signed === "string"
-        ? signed
-        : (signed.signedTxXdr ?? signed.xdr ?? "");
-  } else {
-    throw new Error("Selected wallet provider cannot sign transactions yet.");
-  }
+  const signedTxXdr = await signWalletTransaction(prepared.toXDR());
 
   if (!signedTxXdr) {
     throw new Error("Wallet did not return a signed transaction.");
