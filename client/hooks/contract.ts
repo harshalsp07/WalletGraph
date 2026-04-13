@@ -63,8 +63,8 @@ const horizonServer = new Horizon.Server(HORIZON_URL);
 type WalletProvider = "freighter" | "rabet" | "xbull" | "lobstr";
 
 type InjectedRabet = {
-  connect?: () => Promise<unknown>;
-  getAddress?: () => Promise<string>;
+  connect?: () => Promise<{ publicKey: string; error?: string }>;
+  isUnlocked?: () => Promise<boolean>;
   sign?: (xdr: string, networkPassphrase: string) => Promise<{ xdr: string } | string>;
 };
 
@@ -184,10 +184,10 @@ export async function checkConnection(provider: WalletProvider = getActiveWallet
 
   if (provider === "rabet") {
     const rabet = getRabetProvider();
-    if (!rabet?.getAddress) return false;
+    if (!rabet?.connect) return false;
     try {
-      const address = await rabet.getAddress();
-      return !!address;
+      const result = await rabet.connect();
+      return !!result.publicKey;
     } catch {
       return false;
     }
@@ -221,16 +221,16 @@ export async function connectWallet(provider: WalletProvider = "freighter"): Pro
       throw new Error("Rabet wallet extension not detected.");
     }
     if (rabet.connect) {
-      await rabet.connect();
+      const result = await rabet.connect();
+      if (result.error) {
+        throw new Error(`Rabet connection failed: ${result.error}`);
+      }
+      if (!result.publicKey) {
+        throw new Error("Could not retrieve wallet address from Rabet.");
+      }
+      return result.publicKey;
     }
-    if (!rabet.getAddress) {
-      throw new Error("Rabet wallet API is missing getAddress().");
-    }
-    const address = await rabet.getAddress();
-    if (!address) {
-      throw new Error("Could not retrieve wallet address from Rabet.");
-    }
-    return address;
+    throw new Error("Rabet wallet API is missing connect().");
   }
 
   if (provider === "xbull") {
@@ -273,9 +273,9 @@ export async function getWalletAddress(provider: WalletProvider = getActiveWalle
   try {
     if (provider === "rabet") {
       const rabet = getRabetProvider();
-      if (!rabet?.getAddress) return null;
-      const address = await rabet.getAddress();
-      return address || null;
+      if (!rabet?.connect) return null;
+      const result = await rabet.connect();
+      return result.publicKey || null;
     }
 
     if (provider === "xbull") {
