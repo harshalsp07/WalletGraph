@@ -1,5 +1,5 @@
 import "@testing-library/jest-dom";
+import { TextEncoder, TextDecoder } from "node:util";
 
-// Polyfills for jsdom
 (global as any).TextEncoder = TextEncoder;
 (global as any).TextDecoder = TextDecoder;
