@@ -21,7 +21,8 @@
   </a>
   <br/>
   <br/>
-  <em>🎬 Click the image above to watch the full project walkthrough and demonstration.</em>
+  <em>🎬 Click the image above or the link to watch the full project walkthrough and demonstration.</em>
+  youtube link: https://youtu.be/ROXrRNNsZAw
 </div>
 
 ---
