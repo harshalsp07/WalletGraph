@@ -60,7 +60,7 @@ const CONTRACT_ERRORS: Record<number, string> = {
 const server = new rpc.Server(RPC_URL);
 const horizonServer = new Horizon.Server(HORIZON_URL);
 
-type WalletProvider = "freighter" | "rabet" | "xbull" | "lobstr";
+export type WalletProvider = "freighter" | "rabet" | "xbull" | "lobstr";
 
 type InjectedRabet = {
   connect?: () => Promise<{ publicKey: string; error?: string }>;
@@ -665,5 +665,4 @@ export async function viewInteractionLog(
   );
 }
 
-export type { WalletProvider };
 export { nativeToScVal, scValToNative, Address, xdr };

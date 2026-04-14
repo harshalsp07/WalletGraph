@@ -1,12 +1,12 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useRouter } from "next/navigation";
 import { animate, utils } from "animejs";
+import { useRouter } from "next/navigation";
 import DockHeader from "@/components/DockHeader";
 import FloatingHeader from "@/components/FloatingHeader";
 import ReputationDashboard from "@/components/ReputationDashboard";
-import WalletCockpit from "@/components/WalletCockpit";
+import { BalanceOverview, PaymentPanel } from "@/components/WalletCockpit";
 import OnboardingModal, { isOnboardingComplete } from "@/components/OnboardingModal";
 import {
   checkConnection,
@@ -16,64 +16,61 @@ import {
   type WalletProvider,
 } from "@/hooks/contract";
 
+// ── Welcome Header ──────────────────────────────────────────
+
 function WelcomeHeader({ address }: { address: string }) {
   const shortAddress = `${address.slice(0, 6)}…${address.slice(-4)}`;
   
   return (
-    <div className="w-full max-w-2xl mb-8 animate-fade-in-up">
-      <div className="card-botanical shadow-paper-lg p-7 paper-shadow transition-transform duration-500 hover:scale-[1.01] relative overflow-hidden">
-        <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-[var(--forest)]/25 via-[var(--moss)]/20 to-transparent pointer-events-none" />
-        <div className="flex items-center gap-5">
-          <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-[var(--forest)] via-[var(--moss)] to-[var(--sage)] p-[2px] shadow-[0_6px_20px_rgba(75,110,72,0.28)] ring-1 ring-white/40">
-            <div className="flex h-full w-full items-center justify-center rounded-xl bg-[var(--warm-cream)]">
-              <span className="text-lg font-bold text-[var(--dark-ink)] font-mono-data">
-                {address.slice(0, 2)}
-              </span>
-            </div>
+    <div className="mb-6 animate-fade-in-up">
+      <div className="flex items-center gap-4">
+        <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-[var(--forest)] via-[var(--moss)] to-[var(--sage)] p-[2px] shadow-[0_6px_20px_rgba(75,110,72,0.28)] ring-1 ring-white/40">
+          <div className="flex h-full w-full items-center justify-center rounded-xl bg-[var(--warm-cream)]">
+            <span className="text-lg font-bold text-[var(--dark-ink)] font-mono-data">
+              {address.slice(0, 2)}
+            </span>
           </div>
-          <div>
-            <h1 className="text-2xl font-heading font-bold text-[var(--dark-ink)] embossed tracking-tight">
-              Welcome back
-            </h1>
-            <p className="font-mono-data text-sm text-[var(--stone)]">
-              {shortAddress}
-            </p>
-          </div>
+        </div>
+        <div>
+          <h1 className="text-2xl font-heading font-bold text-[var(--dark-ink)] tracking-tight">
+            Welcome back
+          </h1>
+          <p className="font-mono-data text-sm text-[var(--stone)]">
+            {shortAddress}
+          </p>
         </div>
       </div>
     </div>
   );
 }
 
+// ── Animated Counter ────────────────────────────────────────
+
 function useAnimatedValue(target: number, duration = 1500) {
   const [value, setValue] = useState(target <= 0 ? target : 0);
   
   useEffect(() => {
     let rafId: number;
-
     if (target <= 0) {
       rafId = requestAnimationFrame(() => setValue(target));
       return () => cancelAnimationFrame(rafId);
     }
-    
     let start: number | null = null;
-    
     const tick = (timestamp: number) => {
       if (!start) start = timestamp;
       const progress = Math.min((timestamp - start) / duration, 1);
       const eased = 1 - Math.pow(1 - progress, 3);
       setValue(Math.round(eased * target));
-      if (progress < 1) {
-        rafId = requestAnimationFrame(tick);
-      }
+      if (progress < 1) rafId = requestAnimationFrame(tick);
     };
-    
     rafId = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafId);
   }, [target, duration]);
   
   return value;
 }
+
+// ── Quick Stats ─────────────────────────────────────────────
 
 interface GlobalStats {
   total_wallets: number;
@@ -87,47 +84,49 @@ function QuickStats({ stats }: { stats: GlobalStats }) {
   const reports = useAnimatedValue(stats.total_reports);
   
   return (
-    <div className="grid grid-cols-3 gap-4">
-      <div className="card-botanical shadow-paper-lg p-5 text-center transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_12px_36px_rgba(44,44,43,0.08)] cursor-default relative overflow-hidden">
+    <div className="grid grid-cols-3 gap-3 mb-6 animate-fade-in-up-delayed">
+      <div className="card-botanical shadow-paper-lg p-4 text-center transition-all duration-300 hover:-translate-y-0.5 cursor-default relative overflow-hidden">
         <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[var(--faded-sage)] to-transparent opacity-80 pointer-events-none" />
-        <div className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-[var(--warm-cream)] border-2 border-[var(--faded-sage)] text-[var(--forest)] mb-2 shadow-inner transition-transform duration-300 hover:rotate-12 hover:scale-110">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <div className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--warm-cream)] border border-[var(--faded-sage)] text-[var(--forest)] mb-2">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
             <circle cx="9" cy="7" r="4" />
             <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
             <path d="M16 3.13a4 4 0 0 1 0 7.75" />
           </svg>
         </div>
-        <p className="text-2xl font-heading font-bold text-[var(--dark-ink)] embossed">{wallets}</p>
-        <p className="text-[10px] uppercase tracking-wider text-[var(--stone)] font-semibold mt-1">Wallets</p>
+        <p className="text-xl font-heading font-bold text-[var(--dark-ink)]">{wallets}</p>
+        <p className="text-[9px] uppercase tracking-wider text-[var(--stone)] font-semibold mt-1">Wallets</p>
       </div>
       
-      <div className="card-botanical shadow-paper-lg p-5 text-center transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_12px_36px_rgba(44,44,43,0.08)] cursor-default relative overflow-hidden">
+      <div className="card-botanical shadow-paper-lg p-4 text-center transition-all duration-300 hover:-translate-y-0.5 cursor-default relative overflow-hidden">
         <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[var(--moss)]/40 to-transparent opacity-90 pointer-events-none" />
-        <div className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-[var(--warm-cream)] border-2 border-[var(--faded-sage)] text-[var(--forest)] mb-2 shadow-inner transition-transform duration-300 hover:rotate-12 hover:scale-110">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <div className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--warm-cream)] border border-[var(--faded-sage)] text-[var(--forest)] mb-2">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M7 10v12" />
             <path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z" />
           </svg>
         </div>
-        <p className="text-2xl font-heading font-bold text-[var(--forest)] embossed">{endorsements}</p>
-        <p className="text-[10px] uppercase tracking-wider text-[var(--stone)] font-semibold mt-1">Endorsements</p>
+        <p className="text-xl font-heading font-bold text-[var(--forest)]">{endorsements}</p>
+        <p className="text-[9px] uppercase tracking-wider text-[var(--stone)] font-semibold mt-1">Endorsements</p>
       </div>
       
-      <div className="card-botanical shadow-paper-lg p-5 text-center transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_12px_36px_rgba(44,44,43,0.08)] cursor-default relative overflow-hidden">
+      <div className="card-botanical shadow-paper-lg p-4 text-center transition-all duration-300 hover:-translate-y-0.5 cursor-default relative overflow-hidden">
         <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[var(--terra)]/35 to-transparent opacity-90 pointer-events-none" />
-        <div className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-[var(--warm-cream)] border-2 border-[var(--faded-sage)] text-[var(--terra)] mb-2 shadow-inner transition-transform duration-300 hover:-rotate-12 hover:scale-110">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <div className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--warm-cream)] border border-[var(--faded-sage)] text-[var(--terra)] mb-2">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
             <line x1="4" y1="22" x2="4" y2="15" />
           </svg>
         </div>
-        <p className="text-2xl font-heading font-bold text-[var(--terra)] embossed">{reports}</p>
-        <p className="text-[10px] uppercase tracking-wider text-[var(--stone)] font-semibold mt-1">Reports</p>
+        <p className="text-xl font-heading font-bold text-[var(--terra)]">{reports}</p>
+        <p className="text-[9px] uppercase tracking-wider text-[var(--stone)] font-semibold mt-1">Reports</p>
       </div>
     </div>
   );
 }
+
+// ── Particle Field ──────────────────────────────────────────
 
 function ParticleField() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -137,15 +136,18 @@ function ParticleField() {
     const els: HTMLElement[] = [];
     const leafColors = ["#4B6E48", "#6B8F4E", "#B2AC88", "#D4D0BC", "#5a7a45"];
 
-    for (let i = 0; i < 20; i++) {
+    for (let i = 0; i < 15; i++) {
       const el = document.createElement("div");
       el.className = "tree-leaf";
       el.style.background = leafColors[i % leafColors.length];
+      el.style.position = "absolute";
+      el.style.borderRadius = "50%";
       el.style.left = `${Math.random() * 100}%`;
       el.style.top = `${Math.random() * 100}%`;
       const s = 4 + Math.random() * 6;
       el.style.width = `${s}px`; el.style.height = `${s}px`;
       el.style.opacity = "0.05";
+      el.style.pointerEvents = "none";
       c.appendChild(el); els.push(el);
       animate(el, {
         translateX: () => utils.random(-50, 50),
@@ -159,27 +161,52 @@ function ParticleField() {
       });
     }
 
-    // Fireflies
-    for (let i = 0; i < 15; i++) {
-      const el = document.createElement("div");
-      el.style.cssText = `position:absolute;width:3px;height:3px;border-radius:50%;background:#C9A84C;box-shadow:0 0 8px 3px rgba(201,168,76,0.35);pointer-events:none;opacity:0;left:${Math.random()*100}%;top:${Math.random()*85}%`;
-      c.appendChild(el); els.push(el);
-      animate(el, {
-        translateX: () => utils.random(-100, 100),
-        translateY: () => utils.random(-80, 60),
-        opacity: [{ to: 0 }, { to: 0.5 }, { to: 0.7 }, { to: 0 }],
-        scale: [{ to: 0.5 }, { to: 1.4 }, { to: 0.5 }],
-        duration: 3500 + Math.random() * 3500,
-        delay: i * 400 + 800,
-        loop: true, easing: "easeInOutQuad", alternate: true,
-      });
-    }
-
     return () => els.forEach(e => e.remove());
   }, []);
 
   return <div ref={containerRef} className="pointer-events-none absolute inset-0 overflow-hidden" />;
 }
+
+// ── Dashboard Tabs ──────────────────────────────────────────
+
+type DashboardTab = "overview" | "reputation" | "payments";
+
+const dashboardTabs: { key: DashboardTab; label: string; icon: React.ReactNode }[] = [
+  {
+    key: "overview",
+    label: "Overview",
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect width="7" height="9" x="3" y="3" rx="1" />
+        <rect width="7" height="5" x="14" y="3" rx="1" />
+        <rect width="7" height="9" x="14" y="12" rx="1" />
+        <rect width="7" height="5" x="3" y="16" rx="1" />
+      </svg>
+    ),
+  },
+  {
+    key: "reputation",
+    label: "Reputation",
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="10" />
+        <path d="M12 6v6l4 2" />
+      </svg>
+    ),
+  },
+  {
+    key: "payments",
+    label: "Payments",
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M22 2 11 13" />
+        <path d="m22 2-7 20-4-9-9-4Z" />
+      </svg>
+    ),
+  },
+];
+
+// ── Main Dashboard ──────────────────────────────────────────
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -187,6 +214,7 @@ export default function DashboardPage() {
   const [walletProvider, setWalletProvider] = useState<WalletProvider | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [activeTab, setActiveTab] = useState<DashboardTab>("overview");
   const [globalStats, setGlobalStats] = useState<GlobalStats>({
     total_wallets: 0,
     total_endorsements: 0,
@@ -276,6 +304,7 @@ export default function DashboardPage() {
 
   return (
     <div className="relative flex min-h-screen flex-col bg-[var(--parchment)]">
+      {/* Background */}
       <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
         <div className="absolute top-[-15%] left-[-8%] h-[500px] w-[500px] rounded-full bg-[var(--sage)]/10 blur-[100px] animate-gentle-sway" />
         <div className="absolute bottom-[-10%] right-[-5%] h-[400px] w-[400px] rounded-full bg-[var(--forest)]/8 blur-[120px] animate-gentle-sway" style={{ animationDelay: "4s" }} />
@@ -299,70 +328,66 @@ export default function DashboardPage() {
         />
       )}
 
-      <main className="relative z-10 flex flex-1 flex-col items-center px-6 py-10">
-        <div className="w-full max-w-6xl">
-        <WelcomeHeader address={walletAddress} />
-
-        <div className="mb-6 w-full max-w-2xl animate-fade-in-up">
+      <main className="relative z-10 flex flex-1 flex-col items-center px-4 sm:px-6 py-10">
+        <div className="w-full max-w-4xl">
+          <WelcomeHeader address={walletAddress} />
           <QuickStats stats={globalStats} />
-        </div>
 
-        <div className="animate-fade-in-up-delayed">
-          <WalletCockpit walletAddress={walletAddress} />
-        </div>
-
-        <div className="mt-8 grid gap-6 xl:grid-cols-[1fr_320px]">
-          <div className="min-w-0 animate-fade-in-up-delayed-2">
-            <ReputationDashboard
-              walletAddress={walletAddress}
-              onConnect={handleConnect}
-              isConnecting={isConnecting}
-            />
+          {/* Dashboard Tab Bar */}
+          <div className="mb-6 animate-fade-in-up-delayed-2">
+            <div className="flex gap-2 rounded-2xl border border-[var(--faded-sage)]/80 bg-white/60 p-1.5 backdrop-blur-sm shadow-sm">
+              {dashboardTabs.map((tab) => {
+                const isActive = activeTab === tab.key;
+                return (
+                  <button
+                    key={tab.key}
+                    onClick={() => setActiveTab(tab.key)}
+                    className={`flex items-center gap-2 flex-1 justify-center rounded-xl px-4 py-3 text-sm font-semibold transition-all duration-300 cursor-pointer ${
+                      isActive
+                        ? "bg-[var(--forest)] text-white shadow-[0_4px_16px_rgba(75,110,72,0.3)]"
+                        : "text-[var(--stone)] hover:text-[var(--dark-ink)] hover:bg-white/60"
+                    }`}
+                  >
+                    <span className={isActive ? "text-white/90" : "text-[var(--stone)]"}>{tab.icon}</span>
+                    <span className="hidden sm:inline">{tab.label}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
-          <aside className="space-y-6 animate-fade-in-up-delayed-2">
-            <div className="wallet-panel rounded-[1.8rem] p-6">
-              <p className="text-[10px] uppercase tracking-[0.28em] text-[var(--stone)]">Command Notes</p>
-              <h2 className="mt-3 text-2xl font-heading font-bold text-[var(--dark-ink)]">
-                Reputation meets liquidity.
-              </h2>
-              <p className="mt-3 text-sm leading-7 text-[var(--dark-ink)]/75">
-                WalletGraph now lets trust signals and token motion live on the same screen. Check identity posture, send value, and watch both behaviors shape how a wallet feels in the network.
-              </p>
-            </div>
+          {/* Tab Content */}
+          <div className="animate-fade-in-up-delayed-2">
+            {activeTab === "overview" && (
+              <BalanceOverview walletAddress={walletAddress} />
+            )}
 
-            <div className="wallet-panel rounded-[1.8rem] p-6">
-              <p className="text-[10px] uppercase tracking-[0.28em] text-[var(--stone)]">Flow</p>
-              <div className="mt-4 space-y-3">
-                {[
-                  "Fetch your live XLM balance from Horizon.",
-                  "Approve a signed payment in Freighter, Rabet, or xBull.",
-                  "Review the resulting transaction hash and continue reputation analysis.",
-                ].map((item, index) => (
-                  <div key={item} className="flex items-start gap-3 rounded-2xl bg-white/60 p-3">
-                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--forest)]/10 text-xs font-semibold text-[var(--forest)]">
-                      {index + 1}
-                    </div>
-                    <p className="text-sm leading-6 text-[var(--dark-ink)]/75">{item}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </aside>
-        </div>
+            {activeTab === "reputation" && (
+              <ReputationDashboard
+                walletAddress={walletAddress}
+                onConnect={handleConnect}
+                isConnecting={isConnecting}
+              />
+            )}
 
-        <footer className="mt-16 flex flex-col items-center gap-5 animate-fade-in">
-          <div className="flex items-center gap-5 text-[11px] text-[var(--stone)] font-mono-data">
-            <span>Stellar Network</span>
-            <span className="h-4 w-px bg-[var(--faded-sage)]" />
-            <span>{walletProvider ? `${walletProvider} wallet` : "Multi-wallet login"}</span>
-            <span className="h-4 w-px bg-[var(--faded-sage)]" />
-            <span>Soroban Smart Contracts</span>
+            {activeTab === "payments" && (
+              <PaymentPanel walletAddress={walletAddress} />
+            )}
           </div>
-          <p className="text-[10px] text-[var(--stone)]/50 handwritten text-base">
-            Built on the Stellar blockchain — empowering trust in decentralised finance
-          </p>
-        </footer>
+
+          {/* Footer */}
+          <footer className="mt-16 flex flex-col items-center gap-4 animate-fade-in">
+            <div className="flex items-center gap-4 text-[11px] text-[var(--stone)] font-mono-data">
+              <span>Stellar Network</span>
+              <span className="h-4 w-px bg-[var(--faded-sage)]" />
+              <span>{walletProvider ? `${walletProvider} wallet` : "Multi-wallet login"}</span>
+              <span className="h-4 w-px bg-[var(--faded-sage)]" />
+              <span>Soroban Smart Contracts</span>
+            </div>
+            <p className="text-[10px] text-[var(--stone)]/50 handwritten text-base">
+              Built on the Stellar blockchain — empowering trust in decentralised finance
+            </p>
+          </footer>
         </div>
       </main>
     </div>

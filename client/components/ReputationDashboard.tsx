@@ -8,7 +8,6 @@ import {
   endorseWallet,
   reportWallet,
   viewWalletReputation,
-  viewGlobalStats,
   viewInteractionLog,
   getWalletIdByAddress,
   viewWalletHistory,
@@ -32,12 +31,6 @@ interface InteractionLog {
   is_endorsement: boolean;
   reason: string;
   timestamp: number;
-}
-
-interface GlobalStats {
-  total_wallets: number;
-  total_endorsements: number;
-  total_reports: number;
 }
 
 // ── Icons ────────────────────────────────────────────────────
@@ -88,14 +81,6 @@ function FlagIcon() {
   );
 }
 
-function CheckIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="20 6 9 17 4 12" />
-    </svg>
-  );
-}
-
 function GraphIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -104,25 +89,6 @@ function GraphIcon() {
       <circle cx="19" cy="19" r="3" />
       <line x1="12" y1="8" x2="5" y2="16" />
       <line x1="12" y1="8" x2="19" y2="16" />
-    </svg>
-  );
-}
-
-function AlertIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="10" />
-      <line x1="12" y1="8" x2="12" y2="12" />
-      <line x1="12" y1="16" x2="12.01" y2="16" />
-    </svg>
-  );
-}
-
-function ScrollIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M8 21h12a2 2 0 0 0 2-2v-2H10v2a2 2 0 1 1-4 0V5a2 2 0 1 0-4 0v3h4" />
-      <path d="M19 17V5a2 2 0 0 0-2-2H4" />
     </svg>
   );
 }
@@ -261,7 +227,7 @@ function CommentItem({ log, index }: { log: InteractionLog; index: number }) {
             </span>
           </div>
           <p className="text-sm text-[var(--dark-ink)] leading-relaxed">
-            "{log.reason}"
+            &ldquo;{log.reason}&rdquo;
           </p>
           <p className="text-[10px] text-[var(--stone)] mt-2 font-mono-data">
             {formatDate(log.timestamp)} · Ledger #{log.timestamp}
@@ -307,6 +273,47 @@ function createInkRipple(e: React.MouseEvent<HTMLButtonElement>) {
   });
 }
 
+// ── Helper: resolve wallet input to numeric ID ───────────────
+
+const isStellarAddress = (input: string) => input.startsWith("G") && input.length > 20;
+
+async function resolveWalletInput(
+  input: string,
+  walletAddress: string | null,
+  showToast: (msg: string, type?: "success" | "error" | "info") => void
+): Promise<number | null> {
+  const trimmed = input.trim();
+  if (!trimmed) {
+    showToast("Enter a wallet ID or Stellar address", "error");
+    return null;
+  }
+
+  if (isStellarAddress(trimmed)) {
+    const result = await getWalletIdByAddress(trimmed, walletAddress || undefined);
+    let walletId = 0;
+    if (typeof result === "bigint" || typeof result === "number") {
+      walletId = Number(result);
+    } else if (result && typeof result === "object" && "value" in result) {
+      walletId = Number((result as any).value);
+    } else if (result && typeof result === "object") {
+      const resultObj = result as Record<string, unknown>;
+      walletId = Number(resultObj.value ?? resultObj);
+    }
+    if (walletId === 0) {
+      showToast("This wallet address is not registered yet.", "error");
+      return null;
+    }
+    return walletId;
+  }
+
+  const id = parseInt(trimmed);
+  if (isNaN(id) || id < 1) {
+    showToast("Enter a valid wallet ID (number) or Stellar address (starts with G)", "error");
+    return null;
+  }
+  return id;
+}
+
 // ── Main Component ───────────────────────────────────────────
 
 type Tab = "lookup" | "register" | "endorse" | "report";
@@ -327,19 +334,18 @@ export default function ReputationDashboard({ walletAddress, onConnect, isConnec
   const [isLooking, setIsLooking] = useState(false);
   const [reputation, setReputation] = useState<ReputationRecord | null>(null);
   const [walletHistory, setWalletHistory] = useState<InteractionLog[]>([]);
-  const [showComments, setShowComments] = useState(false);
 
   // Register state
   const [isRegistering, setIsRegistering] = useState(false);
   const [registeredId, setRegisteredId] = useState<number | null>(null);
 
   // Endorse state
-  const [endorseId, setEndorseId] = useState("");
+  const [endorseInput, setEndorseInput] = useState("");
   const [endorseReason, setEndorseReason] = useState("");
   const [isEndorsing, setIsEndorsing] = useState(false);
 
   // Report state  
-  const [reportId, setReportId] = useState("");
+  const [reportInput, setReportInput] = useState("");
   const [reportReason, setReportReason] = useState("");
   const [isReporting, setIsReporting] = useState(false);
 
@@ -373,51 +379,18 @@ export default function ReputationDashboard({ walletAddress, onConnect, isConnec
   }, [activeTab]);
 
   const truncate = (addr: string) => `${addr.slice(0, 8)}…${addr.slice(-6)}`;
-  const isStellarAddress = (input: string) => input.startsWith("G") && input.length > 20;
 
   // ── Handlers ───────────────────────────────────────────────
 
   const handleLookup = useCallback(async () => {
-    if (!lookupInput.trim()) return showToast("Enter a wallet ID or Stellar address", "error");
+    const walletId = await resolveWalletInput(lookupInput, walletAddress, showToast);
+    if (walletId === null) return;
     
     setIsLooking(true);
     setReputation(null);
     setWalletHistory([]);
-    setShowComments(false);
 
     try {
-      let walletId: number;
-      const input = lookupInput.trim();
-
-      if (isStellarAddress(input)) {
-        // It's a Stellar address - look up the wallet ID
-        const result = await getWalletIdByAddress(input, walletAddress || undefined);
-        if (typeof result === "bigint" || typeof result === "number") {
-          walletId = Number(result);
-        } else if (result && typeof result === "object" && "value" in result) {
-          walletId = Number((result as any).value);
-        } else if (result && typeof result === "object") {
-          const resultObj = result as Record<string, unknown>;
-          walletId = Number(resultObj.value ?? resultObj);
-        } else {
-          walletId = 0;
-        }
-        
-        if (walletId === 0) {
-          showToast("This wallet address is not registered yet.", "error");
-          setIsLooking(false);
-          return;
-        }
-      } else {
-        // It's a numeric wallet ID
-        walletId = parseInt(input);
-        if (isNaN(walletId) || walletId < 1) {
-          showToast("Wallet ID must be a positive number", "error");
-          setIsLooking(false);
-          return;
-        }
-      }
-
       const result = await viewWalletReputation(walletId, walletAddress || undefined);
       if (result && typeof result === "object") {
         const resultObj = result as Record<string, unknown>;
@@ -431,7 +404,7 @@ export default function ReputationDashboard({ walletAddress, onConnect, isConnec
         };
         setReputation(rec);
 
-        // Fetch wallet history (comments)
+        // Fetch wallet history
         try {
           const historyResult = await viewWalletHistory(walletId, walletAddress || undefined);
           if (historyResult && Array.isArray(historyResult)) {
@@ -445,7 +418,7 @@ export default function ReputationDashboard({ walletAddress, onConnect, isConnec
                 timestamp: Number(obj.timestamp ?? 0),
               };
             });
-            setWalletHistory(logs.reverse()); // Newest first
+            setWalletHistory(logs.reverse());
           }
         } catch {
           // History not available
@@ -468,7 +441,6 @@ export default function ReputationDashboard({ walletAddress, onConnect, isConnec
     setRegisteredId(null);
     try {
       await registerWallet(walletAddress);
-      // Get the wallet ID for this address
       const walletIdResult = await getWalletIdByAddress(walletAddress, walletAddress);
       let walletId: number | null = null;
       if (typeof walletIdResult === "bigint" || typeof walletIdResult === "number") {
@@ -495,13 +467,18 @@ export default function ReputationDashboard({ walletAddress, onConnect, isConnec
 
   const handleEndorse = useCallback(async (e: React.MouseEvent<HTMLButtonElement>) => {
     if (!walletAddress) return showToast("Connect wallet first", "error");
-    if (!endorseId.trim() || !endorseReason.trim()) return showToast("Fill in all fields", "error");
-    const id = parseInt(endorseId.trim());
-    if (isNaN(id) || id < 1) return showToast("Wallet ID must be a positive number", "error");
+    if (!endorseInput.trim() || !endorseReason.trim()) return showToast("Fill in all fields", "error");
+    
     createInkRipple(e);
     setIsEndorsing(true);
-    showToast("Verifying wallet…", "info");
+
     try {
+      // Resolve input (supports both address and ID)
+      showToast("Resolving wallet…", "info");
+      const id = await resolveWalletInput(endorseInput, walletAddress, showToast);
+      if (id === null) { setIsEndorsing(false); return; }
+
+      // Verify target exists
       const rep = await viewWalletReputation(id, walletAddress) as unknown as Record<string, unknown>;
       if (!rep || !rep.is_active || Number(rep.wallet_id) === 0) {
         throw new Error(`Target wallet ID ${id} does not exist or is inactive.`);
@@ -510,24 +487,29 @@ export default function ReputationDashboard({ walletAddress, onConnect, isConnec
       showToast("Awaiting signature…", "info");
       await endorseWallet(walletAddress, id, endorseReason.trim());
       showToast("Endorsement recorded on-chain! (+1 score)", "success");
-      setEndorseId("");
+      setEndorseInput("");
       setEndorseReason("");
     } catch (err: unknown) {
       showToast(err instanceof Error ? err.message : "Endorsement failed", "error");
     } finally {
       setIsEndorsing(false);
     }
-  }, [walletAddress, endorseId, endorseReason, showToast]);
+  }, [walletAddress, endorseInput, endorseReason, showToast]);
 
   const handleReport = useCallback(async (e: React.MouseEvent<HTMLButtonElement>) => {
     if (!walletAddress) return showToast("Connect wallet first", "error");
-    if (!reportId.trim() || !reportReason.trim()) return showToast("Fill in all fields", "error");
-    const id = parseInt(reportId.trim());
-    if (isNaN(id) || id < 1) return showToast("Wallet ID must be a positive number", "error");
+    if (!reportInput.trim() || !reportReason.trim()) return showToast("Fill in all fields", "error");
+    
     createInkRipple(e);
     setIsReporting(true);
-    showToast("Verifying wallet…", "info");
+
     try {
+      // Resolve input (supports both address and ID)
+      showToast("Resolving wallet…", "info");
+      const id = await resolveWalletInput(reportInput, walletAddress, showToast);
+      if (id === null) { setIsReporting(false); return; }
+
+      // Verify target exists
       const rep = await viewWalletReputation(id, walletAddress) as unknown as Record<string, unknown>;
       if (!rep || !rep.is_active || Number(rep.wallet_id) === 0) {
         throw new Error(`Target wallet ID ${id} does not exist or is inactive.`);
@@ -536,14 +518,14 @@ export default function ReputationDashboard({ walletAddress, onConnect, isConnec
       showToast("Awaiting signature…", "info");
       await reportWallet(walletAddress, id, reportReason.trim());
       showToast("Report submitted on-chain! (−3 score)", "success");
-      setReportId("");
+      setReportInput("");
       setReportReason("");
     } catch (err: unknown) {
       showToast(err instanceof Error ? err.message : "Report failed", "error");
     } finally {
       setIsReporting(false);
     }
-  }, [walletAddress, reportId, reportReason, showToast]);
+  }, [walletAddress, reportInput, reportReason, showToast]);
 
   // ── Tab config ─────────────────────────────────────────────
 
@@ -555,7 +537,7 @@ export default function ReputationDashboard({ walletAddress, onConnect, isConnec
   ];
 
   return (
-    <div ref={cardRef} className="w-full max-w-2xl" style={{ opacity: 0 }}>
+    <div ref={cardRef} className="w-full" style={{ opacity: 0 }}>
       {/* Main Card */}
       <div className="card-botanical shadow-paper-lg overflow-hidden relative">
         <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-[var(--forest)]/25 via-[var(--sage)]/30 to-[var(--terra)]/20 pointer-events-none z-10" />
@@ -581,7 +563,7 @@ export default function ReputationDashboard({ walletAddress, onConnect, isConnec
           {tabs.map((t) => (
             <button
               key={t.key}
-              onClick={() => { setActiveTab(t.key); setReputation(null); setRegisteredId(null); setWalletHistory([]); setShowComments(false); }}
+              onClick={() => { setActiveTab(t.key); setReputation(null); setRegisteredId(null); setWalletHistory([]); }}
               className={`relative flex items-center gap-2 px-5 py-3.5 text-sm font-semibold transition-all cursor-pointer ${
                 activeTab === t.key
                   ? "text-[var(--dark-ink)]"
@@ -605,13 +587,6 @@ export default function ReputationDashboard({ walletAddress, onConnect, isConnec
           {/* ── LOOKUP ── */}
           {activeTab === "lookup" && (
             <div className="space-y-5">
-              <div className="flex items-center gap-2 rounded-xl bg-[var(--parchment)] px-4 py-3 font-mono-data text-sm border border-[var(--faded-sage)]">
-                <span className="font-semibold text-[var(--sage)]">fn</span>
-                <span className="text-[var(--dark-ink)]/80">view_wallet_reputation</span>
-                <span className="text-[var(--stone)] text-xs">(wallet_id: u64 | address: String)</span>
-                <span className="ml-auto text-[var(--stone)] text-[10px]">→ ReputationRecord</span>
-              </div>
-
               <div className="space-y-2">
                 <label className="block text-[11px] font-semibold uppercase tracking-wider text-[var(--stone)]">
                   Wallet ID or Stellar Address
@@ -624,7 +599,7 @@ export default function ReputationDashboard({ walletAddress, onConnect, isConnec
                   type="text"
                 />
                 <p className="text-[10px] text-[var(--stone)]/60">
-                  Enter either a Stellar wallet address (starts with G) or a numeric wallet ID
+                  Enter a Stellar address (starts with G) or a numeric wallet ID
                 </p>
               </div>
 
@@ -681,19 +656,12 @@ export default function ReputationDashboard({ walletAddress, onConnect, isConnec
           {/* ── REGISTER ── */}
           {activeTab === "register" && (
             <div className="space-y-5">
-              <div className="flex items-center gap-2 rounded-xl bg-[var(--parchment)] px-4 py-3 font-mono-data text-sm border border-[var(--faded-sage)]">
-                <span className="font-semibold text-[var(--forest)]">fn</span>
-                <span className="text-[var(--dark-ink)]/80">register_wallet</span>
-                <span className="text-[var(--stone)] text-xs">(address: String)</span>
-                <span className="ml-auto text-[var(--stone)] text-[10px]">→ wallet_id: u64</span>
-              </div>
-
               <div className="rounded-xl bg-[var(--parchment)] border border-[var(--faded-sage)] p-5 text-center space-y-3">
                 <div className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--forest)]/10 border border-[var(--forest)]/20">
                   <UserPlusIcon />
                 </div>
                 <p className="text-sm text-[var(--dark-ink)]/80 max-w-sm mx-auto leading-relaxed">
-                  Register your wallet on the Stellar blockchain. Your wallet address maps to a unique <span className="font-mono-data font-semibold">wallet_id</span> that others can use to endorse or report your reputation.
+                  Register your wallet on-chain. Your address maps to a unique <span className="font-mono-data font-semibold">wallet_id</span> that others can use to endorse or report.
                 </p>
                 <div className="flex items-center justify-center gap-2 text-xs text-[var(--stone)]">
                   <span className="h-2 w-2 rounded-full bg-[var(--forest)] animate-pulse" />
@@ -724,26 +692,21 @@ export default function ReputationDashboard({ walletAddress, onConnect, isConnec
           {/* ── ENDORSE ── */}
           {activeTab === "endorse" && (
             <div className="space-y-5">
-              <div className="flex items-center gap-2 rounded-xl bg-[var(--parchment)] px-4 py-3 font-mono-data text-sm border border-[var(--faded-sage)]">
-                <span className="font-semibold text-[var(--moss)]">fn</span>
-                <span className="text-[var(--dark-ink)]/80">endorse_wallet</span>
-                <span className="text-[var(--stone)] text-xs">(target_wallet_id: u64, reason: String)</span>
-                <span className="ml-auto text-[var(--stone)] text-[10px]">→ log_id</span>
-              </div>
-
               <div className="space-y-4">
                 <div className="space-y-2">
                   <label className="block text-[11px] font-semibold uppercase tracking-wider text-[var(--stone)]">
-                    Wallet ID to Endorse
+                    Wallet ID or Address to Endorse
                   </label>
                   <input
                     className="input-botanical"
-                    value={endorseId}
-                    onChange={(e) => setEndorseId(e.target.value)}
-                    placeholder="e.g. 1"
-                    type="number"
-                    min="1"
+                    value={endorseInput}
+                    onChange={(e) => setEndorseInput(e.target.value)}
+                    placeholder="e.g. GABC123... or 1"
+                    type="text"
                   />
+                  <p className="text-[10px] text-[var(--stone)]/60">
+                    Stellar address or numeric wallet ID
+                  </p>
                 </div>
 
                 <div className="space-y-2">
@@ -779,26 +742,21 @@ export default function ReputationDashboard({ walletAddress, onConnect, isConnec
           {/* ── REPORT ── */}
           {activeTab === "report" && (
             <div className="space-y-5">
-              <div className="flex items-center gap-2 rounded-xl bg-[var(--parchment)] px-4 py-3 font-mono-data text-sm border border-[var(--faded-sage)]">
-                <span className="font-semibold text-[var(--terra)]">fn</span>
-                <span className="text-[var(--dark-ink)]/80">report_wallet</span>
-                <span className="text-[var(--stone)] text-xs">(target_wallet_id: u64, reason: String)</span>
-                <span className="ml-auto text-[var(--stone)] text-[10px]">→ log_id</span>
-              </div>
-
               <div className="space-y-4">
                 <div className="space-y-2">
                   <label className="block text-[11px] font-semibold uppercase tracking-wider text-[var(--stone)]">
-                    Wallet ID to Report
+                    Wallet ID or Address to Report
                   </label>
                   <input
                     className="input-botanical"
-                    value={reportId}
-                    onChange={(e) => setReportId(e.target.value)}
-                    placeholder="e.g. 2"
-                    type="number"
-                    min="1"
+                    value={reportInput}
+                    onChange={(e) => setReportInput(e.target.value)}
+                    placeholder="e.g. GABC123... or 2"
+                    type="text"
                   />
+                  <p className="text-[10px] text-[var(--stone)]/60">
+                    Stellar address or numeric wallet ID
+                  </p>
                 </div>
 
                 <div className="space-y-2">

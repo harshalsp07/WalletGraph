@@ -43,6 +43,10 @@ const DAMPING = 0.82;
 const REPULSION = 2500;
 const MAX_NODES_PER_TYPE = 12;
 
+// Fixed internal coordinate system for the SVG graph
+const GRAPH_CX = 450;
+const GRAPH_CY = 350;
+
 interface BranchData {
   id: string;
   x1: number;
@@ -62,21 +66,19 @@ function generateBranchPath(
   seed: number,
   isMain: boolean
 ): string {
-  const midX = (x1 + x2) / 2;
-  const midY = (y1 + y2) / 2;
   const dx = x2 - x1;
   const dy = y2 - y1;
   const len = Math.sqrt(dx * dx + dy * dy) || 1;
   const perpX = -dy / len;
   const perpY = dx / len;
 
-  const wobble1 = ((seed * 7) % 11 - 5) * (isMain ? 2 : 1.2);
-  const wobble2 = ((seed * 13) % 9 - 4) * (isMain ? 1.8 : 1);
+  // Subtle symmetric wobble — keeps endpoints accurate
+  const wobble = ((seed * 7) % 11 - 5) * (isMain ? 1.5 : 0.8);
 
-  const cp1x = x1 + (x2 - x1) * 0.25 + perpX * wobble1;
-  const cp1y = y1 + (y2 - y1) * 0.25 + perpY * wobble1;
-  const cp2x = x1 + (x2 - x1) * 0.75 + perpX * wobble2;
-  const cp2y = y1 + (y2 - y1) * 0.75 + perpY * wobble2;
+  const cp1x = x1 + dx * 0.33 + perpX * wobble;
+  const cp1y = y1 + dy * 0.33 + perpY * wobble;
+  const cp2x = x1 + dx * 0.66 - perpX * wobble * 0.6;
+  const cp2y = y1 + dy * 0.66 - perpY * wobble * 0.6;
 
   return `M ${x1} ${y1} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${x2} ${y2}`;
 }
@@ -140,11 +142,23 @@ export default function GraphVisualization({
   const [hoveredNode, setHoveredNode] = useState<string | null>(null);
   const [nodesReady, setNodesReady] = useState(false);
 
-  // Zoom/pan state
-  const [viewBox, setViewBox] = useState({ x: 0, y: 0, w: 900, h: 700 });
+  // Zoom/pan state — viewBox is calculated from containerSize and zoom
   const [isPanning, setIsPanning] = useState(false);
   const panStart = useRef({ x: 0, y: 0, vx: 0, vy: 0 });
   const [zoom, setZoom] = useState(1);
+  const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
+
+  // Derived viewBox — always centered on graph center with pan/zoom applied
+  const viewBox = useMemo(() => {
+    const w = containerSize.width / zoom;
+    const h = containerSize.height / zoom;
+    return {
+      x: GRAPH_CX - w / 2 + panOffset.x,
+      y: GRAPH_CY - h / 2 + panOffset.y,
+      w,
+      h,
+    };
+  }, [containerSize, zoom, panOffset]);
 
   // ── Container sizing ──────────────────────────────────────────
 
@@ -156,7 +170,6 @@ export default function GraphVisualization({
         const w = rect.width > 0 ? rect.width : window.innerWidth;
         const h = rect.height > 0 ? rect.height : window.innerHeight;
         setContainerSize({ width: w, height: h });
-        setViewBox(prev => ({ ...prev, w, h }));
       }
     };
     updateSize();
@@ -168,8 +181,9 @@ export default function GraphVisualization({
     };
   }, []);
 
-  const centerX = containerSize.width / 2;
-  const centerY = containerSize.height / 2;
+  // Use fixed graph center for node positions
+  const centerX = GRAPH_CX;
+  const centerY = GRAPH_CY;
 
   // ── Build graph nodes ─────────────────────────────────────────
 
@@ -352,9 +366,10 @@ export default function GraphVisualization({
     // Animate nodes
     const nodeEls = document.querySelectorAll(".graph-node-group");
     nodeEls.forEach((el, i) => {
+      const targetScale = el.getAttribute("data-scale") ? parseFloat(el.getAttribute("data-scale")!) : 1;
       animate(el, {
         opacity: [0, 1],
-        scale: [0.3, 1],
+        scale: [0.3, targetScale],
         duration: 600,
         easing: "easeOutBack",
         delay: 200 + i * 50,
@@ -369,23 +384,9 @@ export default function GraphVisualization({
       e.preventDefault();
       const zoomFactor = e.deltaY > 0 ? 1.08 : 0.92;
       const newZoom = Math.min(Math.max(zoom * zoomFactor, 0.4), 3);
-
-      const svgRect = svgRef.current?.getBoundingClientRect();
-      if (!svgRect) return;
-      const mouseX =
-        ((e.clientX - svgRect.left) / svgRect.width) * viewBox.w + viewBox.x;
-      const mouseY =
-        ((e.clientY - svgRect.top) / svgRect.height) * viewBox.h + viewBox.y;
-
-      const newW = containerSize.width / newZoom;
-      const newH = containerSize.height / newZoom;
-      const newX = mouseX - (mouseX - viewBox.x) * (newW / viewBox.w);
-      const newY = mouseY - (mouseY - viewBox.y) * (newH / viewBox.h);
-
-      setViewBox({ x: newX, y: newY, w: newW, h: newH });
       setZoom(newZoom);
     },
-    [zoom, viewBox, containerSize]
+    [zoom]
   );
 
   // ── Pan handlers ──────────────────────────────────────────────
@@ -397,11 +398,11 @@ export default function GraphVisualization({
       panStart.current = {
         x: e.clientX,
         y: e.clientY,
-        vx: viewBox.x,
-        vy: viewBox.y,
+        vx: panOffset.x,
+        vy: panOffset.y,
       };
     },
-    [viewBox]
+    [panOffset]
   );
 
   const handleMouseMove = useCallback(
@@ -409,14 +410,13 @@ export default function GraphVisualization({
       if (!isPanning) return;
       const dx = e.clientX - panStart.current.x;
       const dy = e.clientY - panStart.current.y;
-      const scale = viewBox.w / containerSize.width;
-      setViewBox((v) => ({
-        ...v,
+      const scale = 1 / zoom;
+      setPanOffset({
         x: panStart.current.vx - dx * scale,
         y: panStart.current.vy - dy * scale,
-      }));
+      });
     },
-    [isPanning, viewBox.w, containerSize.width]
+    [isPanning, zoom]
   );
 
   const handleMouseUp = useCallback(() => setIsPanning(false), []);
@@ -663,16 +663,32 @@ export default function GraphVisualization({
             const seed = node.log?.log_id || 0;
             const layer = node.layer || 0;
             const layerWidth = 1.2 + layer * 0.3;
+            const layerScale = 1 - layer * 0.08;
+
+            // Compute edge-to-edge endpoints so lines don't
+            // overlap the circles
+            const dx = node.x - center.x;
+            const dy = node.y - center.y;
+            const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+            const ux = dx / dist;
+            const uy = dy / dist;
+
+            // Start at center node edge, end at leaf node edge
+            const effectiveNodeRadius = NODE_RADIUS * layerScale;
+            const startX = center.x + ux * (CENTER_RADIUS + 2);
+            const startY = center.y + uy * (CENTER_RADIUS + 2);
+            const endX = node.x - ux * (effectiveNodeRadius + 2);
+            const endY = node.y - uy * (effectiveNodeRadius + 2);
 
             return (
               <g key={`line-${node.id}`}>
                 {/* Branch shadow/depth */}
                 <path
                   d={generateBranchPath(
-                    center.x,
-                    center.y,
-                    node.x,
-                    node.y,
+                    startX,
+                    startY,
+                    endX,
+                    endY,
                     seed,
                     true
                   )}
@@ -685,10 +701,10 @@ export default function GraphVisualization({
                 {/* Secondary branch layer */}
                 <path
                   d={generateBranchPath(
-                    center.x,
-                    center.y,
-                    node.x,
-                    node.y,
+                    startX,
+                    startY,
+                    endX,
+                    endY,
                     seed + 5,
                     false
                   )}
@@ -705,10 +721,10 @@ export default function GraphVisualization({
                 {isFocused && (
                   <path
                     d={generateBranchPath(
-                      center.x,
-                      center.y,
-                      node.x,
-                      node.y,
+                      startX,
+                      startY,
+                      endX,
+                      endY,
                       seed,
                       true
                     )}
@@ -726,10 +742,10 @@ export default function GraphVisualization({
                 {/* Main ink line */}
                 <path
                   d={generateBranchPath(
-                    center.x,
-                    center.y,
-                    node.x,
-                    node.y,
+                    startX,
+                    startY,
+                    endX,
+                    endY,
                     seed,
                     false
                   )}
@@ -745,17 +761,6 @@ export default function GraphVisualization({
                   style={{
                     transition: "stroke-width 0.2s ease",
                   }}
-                />
-
-                {/* Branch node "fruit" indicator */}
-                <circle
-                  cx={node.x}
-                  cy={node.y}
-                  r={isFocused ? 4 : 2.5}
-                  fill={
-                    isEndorsement ? "var(--forest)" : "var(--terra)"
-                  }
-                  opacity={isFocused ? 0.9 : 0.5}
                 />
               </g>
             );
@@ -787,16 +792,20 @@ export default function GraphVisualization({
             return (
               <g
                 key={`node-${node.id}`}
-                className="graph-node-group"
-                style={{ cursor: "pointer", opacity: 0 }}
+                style={{ cursor: "pointer" }}
                 onClick={(e) => {
                   e.stopPropagation();
                   handleNodeClick(node);
                 }}
                 onMouseEnter={() => setHoveredNode(node.id)}
                 onMouseLeave={() => setHoveredNode(null)}
-                transform={`translate(${node.x}, ${node.y}) scale(${layerScale})`}
+                transform={`translate(${node.x}, ${node.y})`}
               >
+                <g
+                  className="graph-node-group"
+                  data-scale={layerScale}
+                  style={{ opacity: 0, transform: `scale(${layerScale})`, transformOrigin: "center" }}
+                >
                 {/* Outer aura/glow */}
                 <circle
                   r={NODE_RADIUS + 12}
@@ -913,8 +922,9 @@ export default function GraphVisualization({
                   </g>
                 )}
               </g>
-            );
-          })}
+            </g>
+          );
+        })}
 
         {/* Center node - the "tree trunk" root */}
         {currentNodes.length > 0 && (
@@ -1157,43 +1167,21 @@ export default function GraphVisualization({
       {/* ── Zoom Controls ── */}
       <div className="absolute bottom-6 right-6 z-10 flex flex-col gap-1">
         <button
-          onClick={() => {
-            const newZoom = Math.min(zoom * 1.3, 3);
-            const newW = containerSize.width / newZoom;
-            const newH = containerSize.height / newZoom;
-            setViewBox({
-              x: centerX - newW / 2,
-              y: centerY - newH / 2,
-              w: newW,
-              h: newH,
-            });
-            setZoom(newZoom);
-          }}
+          onClick={() => setZoom(z => Math.min(z * 1.3, 3))}
           className="w-9 h-9 card-botanical flex items-center justify-center text-[var(--dark-ink)] hover:text-[var(--forest)] hover:bg-[var(--forest)]/5 transition-all cursor-pointer text-lg font-bold"
         >
           +
         </button>
         <button
-          onClick={() => {
-            const newZoom = Math.max(zoom * 0.7, 0.4);
-            const newW = containerSize.width / newZoom;
-            const newH = containerSize.height / newZoom;
-            setViewBox({
-              x: centerX - newW / 2,
-              y: centerY - newH / 2,
-              w: newW,
-              h: newH,
-            });
-            setZoom(newZoom);
-          }}
+          onClick={() => setZoom(z => Math.max(z * 0.7, 0.4))}
           className="w-9 h-9 card-botanical flex items-center justify-center text-[var(--dark-ink)] hover:text-[var(--forest)] hover:bg-[var(--forest)]/5 transition-all cursor-pointer text-lg font-bold"
         >
           −
         </button>
         <button
           onClick={() => {
-            setViewBox({ x: 0, y: 0, w: containerSize.width, h: containerSize.height });
             setZoom(1);
+            setPanOffset({ x: 0, y: 0 });
           }}
           className="w-9 h-9 card-botanical flex items-center justify-center text-[var(--stone)] hover:text-[var(--forest)] hover:bg-[var(--forest)]/5 transition-all cursor-pointer"
           title="Reset zoom"
