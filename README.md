@@ -13,9 +13,23 @@
 
 ---
 
+## 🎥 Live Demo Video
+
+<div align="center">
+  <a href="https://youtu.be/ROXrRNNsZAw">
+    <img src="https://img.youtube.com/vi/ROXrRNNsZAw/maxresdefault.jpg" alt="Wallet Reputation Graph Demo Video" width="800" style="border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.2);" />
+  </a>
+  <br/>
+  <br/>
+  <em>🎬 Click the image above to watch the full project walkthrough and demonstration.</em>
+</div>
+
+---
+
 ## 📋 Table of Contents
 
 - [Project Title](#-wallet-reputation-graph)
+- [Live Demo Video](#-live-demo-video)
 - [Project Description](#-project-description)
 - [Product Showcase](#-product-showcase)
 - [Project Vision](#-project-vision)
