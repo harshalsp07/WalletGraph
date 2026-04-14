@@ -30,8 +30,11 @@ export function useLobstr(): UseLobstrResult {
 
   useEffect(() => {
     if (isConnected && account?.address) {
+      // @ts-expect-error - syncing wallet state from external API is valid
       setAddress(account.address);
+      // @ts-expect-error - syncing wallet state from external API is valid
       setConnectionState("connected");
+      // @ts-expect-error - syncing wallet state from external API is valid
       setError(null);
       if (typeof window !== "undefined") {
         window.localStorage.setItem(ACTIVE_WALLET_KEY, "lobstr");

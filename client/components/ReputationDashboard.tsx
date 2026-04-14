@@ -8,7 +8,6 @@ import {
   endorseWallet,
   reportWallet,
   viewWalletReputation,
-  viewInteractionLog,
   getWalletIdByAddress,
   viewWalletHistory,
   CONTRACT_ADDRESS,
@@ -294,7 +293,8 @@ async function resolveWalletInput(
     if (typeof result === "bigint" || typeof result === "number") {
       walletId = Number(result);
     } else if (result && typeof result === "object" && "value" in result) {
-      walletId = Number((result as any).value);
+      const resultWithValue = result as { value: bigint | number };
+      walletId = Number(resultWithValue.value);
     } else if (result && typeof result === "object") {
       const resultObj = result as Record<string, unknown>;
       walletId = Number(resultObj.value ?? resultObj);
@@ -446,7 +446,8 @@ export default function ReputationDashboard({ walletAddress, onConnect, isConnec
       if (typeof walletIdResult === "bigint" || typeof walletIdResult === "number") {
         walletId = Number(walletIdResult);
       } else if (walletIdResult && typeof walletIdResult === "object" && "value" in walletIdResult) {
-        walletId = Number((walletIdResult as any).value);
+        const resultWithValue = walletIdResult as { value: bigint | number };
+        walletId = Number(resultWithValue.value);
       } else if (walletIdResult && typeof walletIdResult === "object") {
         const resultObj = walletIdResult as Record<string, unknown>;
         walletId = Number(resultObj.value ?? resultObj);

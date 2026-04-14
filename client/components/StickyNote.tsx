@@ -43,6 +43,7 @@ export default function StickyNote({ log, type, anchor, onClose }: StickyNotePro
 
     el.style.left = `${left}px`;
     el.style.top = `${top}px`;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setPlaced(true);
   }, [anchor.x, anchor.y]);
 

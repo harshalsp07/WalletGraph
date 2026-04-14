@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { animate } from "animejs";
 import { HORIZON_URL, NETWORK, fetchXlmBalance, sendXlmTransaction } from "@/hooks/contract";
 import { useToast } from "@/context/ToastContext";
 

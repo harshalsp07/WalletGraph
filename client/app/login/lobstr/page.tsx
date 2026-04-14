@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import DockHeader from "@/components/DockHeader";
 import FloatingHeader from "@/components/FloatingHeader";
 import {
@@ -15,6 +15,11 @@ import { getWalletOption } from "@/lib/wallets";
 
 const LobstrConnect = dynamic(() => import("@/components/lobstr/LobstrConnect"), {
   ssr: false,
+  loading: () => (
+    <div className="flex items-center justify-center p-8">
+      <div className="h-8 w-8 animate-spin rounded-full border-2 border-[var(--forest)]/30 border-t-[var(--forest)]" />
+    </div>
+  ),
 });
 
 type FlowState = "idle" | "connecting" | "registering" | "success" | "error";

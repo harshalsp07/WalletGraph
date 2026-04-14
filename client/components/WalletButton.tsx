@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { animate } from "animejs";
 import { connectWallet } from "@/hooks/contract";
 
 type WalletButtonState = "disconnected" | "connecting" | "connected" | "error";

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { animate } from "animejs";
 
 interface OnboardingModalProps {
@@ -98,11 +97,10 @@ export function skipOnboarding(): void {
 }
 
 export default function OnboardingModal({ walletAddress, onComplete }: OnboardingModalProps) {
-  const [isVisible, setIsVisible] = useState(false);
+  const [isVisible] = useState(true);
   const [activeFeature, setActiveFeature] = useState(0);
 
   useEffect(() => {
-    setIsVisible(true);
     const interval = setInterval(() => {
       setActiveFeature((prev) => (prev + 1) % features.length);
     }, 3000);

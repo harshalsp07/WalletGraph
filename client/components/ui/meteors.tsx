@@ -1,24 +1,28 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { useMemo } from "react";
 
 interface MeteorsProps {
   number?: number;
   className?: string;
 }
 
+const generateMeteors = (count: number) => {
+  const seeded = Array.from({ length: count }, (_, i) => {
+    const seed = (i * 9301 + 49297) % 233280;
+    const random = seed / 233280;
+    return {
+      id: i,
+      left: `${Math.floor(random * 100)}%`,
+      delay: `${(random * 5).toFixed(1)}s`,
+      duration: `${(random * 3 + 2).toFixed(1)}s`,
+    };
+  });
+  return seeded;
+};
+
 export function Meteors({ number = 15, className }: MeteorsProps) {
-  const meteors = useMemo(
-    () =>
-      Array.from({ length: number }, (_, i) => ({
-        id: i,
-        left: `${Math.floor(Math.random() * 100)}%`,
-        delay: `${(Math.random() * 5).toFixed(1)}s`,
-        duration: `${(Math.random() * 3 + 2).toFixed(1)}s`,
-      })),
-    [number]
-  );
+  const meteors = generateMeteors(number);
 
   return (
     <>

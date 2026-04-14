@@ -74,7 +74,6 @@ function GraphPageContent() {
 
   useEffect(() => {
     const fetchData = async () => {
-      let targetWalletId: number | null = null;
       let walletIdParam = walletId;
       let addressParamVal = addressParam;
 
@@ -104,7 +103,8 @@ function GraphPageContent() {
           if (typeof result === "bigint" || typeof result === "number") {
             targetWalletId = Number(result);
           } else if (result && typeof result === "object" && "value" in result) {
-            targetWalletId = Number((result as any).value);
+            const resultObj = result as Record<string, { value: bigint | number }>;
+            targetWalletId = Number(resultObj.value);
           } else if (result && typeof result === "object") {
             const resultObj = result as Record<string, unknown>;
             targetWalletId = Number(resultObj.value ?? resultObj);

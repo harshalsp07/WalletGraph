@@ -47,17 +47,6 @@ const MAX_NODES_PER_TYPE = 12;
 const GRAPH_CX = 450;
 const GRAPH_CY = 350;
 
-interface BranchData {
-  id: string;
-  x1: number;
-  y1: number;
-  x2: number;
-  y2: number;
-  width: number;
-  seed: number;
-  layer: number;
-}
-
 function generateBranchPath(
   x1: number,
   y1: number,
@@ -81,18 +70,6 @@ function generateBranchPath(
   const cp2y = y1 + dy * 0.66 - perpY * wobble * 0.6;
 
   return `M ${x1} ${y1} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${x2} ${y2}`;
-}
-
-// ── Ink Path Generator (Organic Branch-Like) ─────────────────────
-
-function generateInkPath(
-  x1: number,
-  y1: number,
-  x2: number,
-  y2: number,
-  seed: number
-): string {
-  return generateBranchPath(x1, y1, x2, y2, seed, false);
 }
 
 // ── Score Arc Generator ─────────────────────────────────────────
@@ -163,7 +140,6 @@ export default function GraphVisualization({
   // ── Container sizing ──────────────────────────────────────────
 
   useEffect(() => {
-    let timeoutId: number;
     const updateSize = () => {
       if (containerRef.current) {
         const rect = containerRef.current.getBoundingClientRect();
@@ -173,7 +149,7 @@ export default function GraphVisualization({
       }
     };
     updateSize();
-    timeoutId = window.setTimeout(updateSize, 100);
+    const timeoutId = window.setTimeout(updateSize, 100);
     window.addEventListener("resize", updateSize);
     return () => {
       window.clearTimeout(timeoutId);
@@ -654,7 +630,7 @@ export default function GraphVisualization({
         {/* Organic branch-like connections */}
         {currentNodes
           .filter((n) => n.type !== "center")
-          .map((node, idx) => {
+          .map((node) => {
             const center = currentNodes[0];
             const isFocused =
               hoveredNode === node.id ||
@@ -1228,7 +1204,7 @@ export default function GraphVisualization({
               No Interactions Yet
             </p>
             <p className="text-xs text-[var(--stone)] leading-relaxed">
-              This wallet hasn't received any endorsements or reports. Be the
+              This wallet hasn&apos;t received any endorsements or reports. Be the
               first to build its reputation graph.
             </p>
           </div>

@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { animate, utils, stagger } from "animejs";
+import { animate, utils } from "animejs";
 import DockHeader from "@/components/DockHeader";
 import FloatingHeader from "@/components/FloatingHeader";
 import {
