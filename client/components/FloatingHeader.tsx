@@ -16,7 +16,7 @@ export default function FloatingHeader() {
 
   return (
     <header
-      className={`fixed top-0 left-0 right-0 z-40 flex items-center justify-between px-6 py-4 transition-all duration-500 pointer-events-none`}
+      className={`fixed top-0 left-0 right-0 z-40 flex items-center justify-between px-3 sm:px-6 py-3 sm:py-4 transition-all duration-500 pointer-events-none`}
     >
       <div 
         className={`flex items-center gap-3 transition-all duration-500 pointer-events-auto ${
@@ -36,7 +36,7 @@ export default function FloatingHeader() {
           <div className="flex flex-col">
             <div className="relative">
               <span 
-                className="text-xl font-heading font-bold tracking-tight text-[var(--dark-ink)] relative z-10"
+                className="text-lg sm:text-xl font-heading font-bold tracking-tight text-[var(--dark-ink)] relative z-10"
                 style={{
                   textShadow: "0 1px 0 rgba(255,255,255,0.8), 0 -1px 0 rgba(0,0,0,0.1), 0 2px 4px rgba(0,0,0,0.05)",
                 }}

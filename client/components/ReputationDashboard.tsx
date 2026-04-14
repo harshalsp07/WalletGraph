@@ -542,7 +542,7 @@ export default function ReputationDashboard({ walletAddress, onConnect, isConnec
       <div className="card-botanical shadow-paper-lg overflow-hidden relative">
         <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-[var(--forest)]/25 via-[var(--sage)]/30 to-[var(--terra)]/20 pointer-events-none z-10" />
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-[var(--faded-sage)] px-6 py-4">
+        <div className="flex items-center justify-between border-b border-[var(--faded-sage)] px-4 sm:px-6 py-3 sm:py-4">
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-[var(--forest)]/15 to-[var(--sage)]/15 border border-[var(--faded-sage)]">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--forest)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -552,19 +552,19 @@ export default function ReputationDashboard({ walletAddress, onConnect, isConnec
             </div>
             <div>
               <h3 className="text-sm font-heading font-bold text-[var(--dark-ink)]">Reputation Explorer</h3>
-              <p className="text-[10px] text-[var(--stone)] font-mono-data mt-0.5">{truncate(CONTRACT_ADDRESS)}</p>
+              <p className="text-[10px] text-[var(--stone)] font-mono-data mt-0.5 hidden sm:block">{truncate(CONTRACT_ADDRESS)}</p>
             </div>
           </div>
           <span className="badge badge-sage">Soroban</span>
         </div>
 
         {/* Tabs */}
-        <div className="flex border-b border-[var(--faded-sage)] px-2">
+        <div className="flex border-b border-[var(--faded-sage)] px-1 sm:px-2 overflow-x-auto">
           {tabs.map((t) => (
             <button
               key={t.key}
               onClick={() => { setActiveTab(t.key); setReputation(null); setRegisteredId(null); setWalletHistory([]); }}
-              className={`relative flex items-center gap-2 px-5 py-3.5 text-sm font-semibold transition-all cursor-pointer ${
+              className={`relative flex items-center gap-1 sm:gap-2 px-3 sm:px-5 py-3 sm:py-3.5 text-sm font-semibold transition-all cursor-pointer whitespace-nowrap ${
                 activeTab === t.key
                   ? "text-[var(--dark-ink)]"
                   : "text-[var(--stone)] hover:text-[var(--dark-ink)]/70"
@@ -583,7 +583,7 @@ export default function ReputationDashboard({ walletAddress, onConnect, isConnec
         </div>
 
         {/* Tab Content */}
-        <div className="p-6 tab-content">
+        <div className="p-4 sm:p-6 tab-content">
           {/* ── LOOKUP ── */}
           {activeTab === "lookup" && (
             <div className="space-y-5">
@@ -791,7 +791,7 @@ export default function ReputationDashboard({ walletAddress, onConnect, isConnec
         </div>
 
         {/* Footer */}
-        <div className="border-t border-[var(--faded-sage)] px-6 py-3 flex items-center justify-between">
+        <div className="border-t border-[var(--faded-sage)] px-4 sm:px-6 py-3 flex flex-col sm:flex-row items-center justify-between gap-2 sm:gap-0">
           <p className="text-[10px] text-[var(--stone)]">Wallet Reputation Graph · Soroban</p>
           <div className="flex items-center gap-3 text-[10px] text-[var(--stone)]">
             <span className="flex items-center gap-1">

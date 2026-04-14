@@ -469,7 +469,7 @@ export default function GraphVisualization({
   return (
     <div
       ref={containerRef}
-      className="w-full h-screen relative"
+      className="w-full h-[calc(100vh-2rem)] sm:h-screen relative"
       style={{ cursor: isPanning ? "grabbing" : "grab" }}
     >
       {/* Nature-inspired forest background */}
@@ -1054,8 +1054,8 @@ export default function GraphVisualization({
       </svg>
 
       {/* ── Legend Panel ── */}
-      <div className="absolute bottom-6 left-6 z-10">
-        <div className="card-botanical shadow-paper-lg px-5 py-4 space-y-3 backdrop-blur-sm">
+      <div className="absolute bottom-4 sm:bottom-6 left-4 sm:left-6 z-10">
+        <div className="card-botanical shadow-paper-lg px-4 sm:px-5 py-3 sm:py-4 space-y-2 sm:space-y-3 backdrop-blur-sm">
           <p
             className="text-[9px] font-semibold uppercase tracking-[0.15em] text-[var(--stone)]"
             style={{ marginBottom: 8 }}
@@ -1098,8 +1098,8 @@ export default function GraphVisualization({
 
       {/* ── Stats Panel ── */}
       {reputation && (
-        <div className="absolute top-6 right-6 z-10 max-w-[220px]">
-          <div className="card-botanical shadow-paper-lg px-5 py-5 space-y-3 relative overflow-hidden">
+        <div className="absolute top-20 sm:top-6 right-4 sm:right-6 z-10 w-[180px] sm:max-w-[220px]">
+          <div className="card-botanical shadow-paper-lg px-4 sm:px-5 py-4 sm:py-5 space-y-3 relative overflow-hidden">
             <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-[var(--forest)]/30 to-transparent pointer-events-none" />
             <div className="flex items-center gap-2 mb-1">
               <span

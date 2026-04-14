@@ -52,7 +52,7 @@ export default function LoginPage() {
         isConnecting={false}
       />
 
-      <main className="relative z-10 flex flex-1 items-center justify-center px-4 py-20 sm:px-6">
+      <main className="relative z-10 flex flex-1 items-center justify-center px-3 sm:px-6 py-16 sm:py-20">
         <section className="w-full max-w-lg">
           {/* Hero */}
           <div className="mb-10 text-center animate-fade-in-up">

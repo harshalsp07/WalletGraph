@@ -255,12 +255,12 @@ function GraphPageContent() {
       </div>
 
       {/* Graph HUD - Floating Overlays */}
-      <div className="absolute top-24 left-6 z-30 pointer-events-none flex flex-col gap-4">
+      <div className="absolute top-20 left-3 sm:left-6 z-30 pointer-events-none flex flex-col gap-4">
         
         {/* Graph Search Bar */}
         <form 
           onSubmit={handleSearchSubmit}
-          className="pointer-events-auto flex items-center bg-[var(--warm-cream)]/95 backdrop-blur-xl border border-[var(--faded-sage)]/80 rounded-2xl shadow-[0_4px_24px_rgba(44,44,43,0.07),0_1px_0_rgba(255,255,255,0.85)_inset] overflow-hidden w-[min(100%,20rem)] transition-all focus-within:ring-2 focus-within:ring-[var(--forest)]/25 focus-within:border-[var(--forest)]/35 focus-within:shadow-[0_12px_40px_rgba(75,110,72,0.14)] hover:border-[var(--sage)]"
+          className="pointer-events-auto flex items-center bg-[var(--warm-cream)]/95 backdrop-blur-xl border border-[var(--faded-sage)]/80 rounded-2xl shadow-[0_4px_24px_rgba(44,44,43,0.07),0_1px_0_rgba(255,255,255,0.85)_inset] overflow-hidden w-[min(100%,16rem) sm:w-[min(100%,20rem)]] transition-all focus-within:ring-2 focus-within:ring-[var(--forest)]/25 focus-within:border-[var(--forest)]/35 focus-within:shadow-[0_12px_40px_rgba(75,110,72,0.14)] hover:border-[var(--sage)]"
         >
           <div className="pl-4 pr-2 text-[var(--stone)]">
             <SearchIcon />

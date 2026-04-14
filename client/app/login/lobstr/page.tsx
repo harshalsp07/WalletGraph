@@ -1,35 +1,23 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
 import DockHeader from "@/components/DockHeader";
 import FloatingHeader from "@/components/FloatingHeader";
 import {
-  checkConnection,
-  connectWallet,
   getActiveWalletProvider,
-  getWalletAddress,
   getWalletIdByAddress,
-  getWalletProviderStatus,
   registerWallet,
-  type WalletProvider,
 } from "@/hooks/contract";
 import { getWalletOption } from "@/lib/wallets";
 
-type FlowState = "idle" | "checking" | "connecting" | "registering" | "success" | "error";
+const LobstrConnect = dynamic(() => import("@/components/lobstr/LobstrConnect"), {
+  ssr: false,
+});
 
-function normalizeWallet(value: string | string[] | undefined): WalletProvider | null {
-  const id = Array.isArray(value) ? value[0] : value;
-  if (id === "freighter" || id === "rabet" || id === "xbull" || id === "lobstr") {
-    return id;
-  }
-  return null;
-}
-
-function normalizeToRedirect(provider: WalletProvider): boolean {
-  return provider === "lobstr";
-}
+type FlowState = "idle" | "connecting" | "registering" | "success" | "error";
 
 function extractWalletId(value: unknown): number | null {
   if (typeof value === "number") return value;
@@ -73,97 +61,65 @@ function StepRow({
   );
 }
 
-export default function WalletProviderLoginPage() {
+export default function LobstrLoginPage() {
   const router = useRouter();
-  const params = useParams();
-  const selectedWallet = normalizeWallet(params.wallet);
-  const walletOption = useMemo(() => getWalletOption(selectedWallet), [selectedWallet]);
+  const walletOption = getWalletOption("lobstr");
 
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
-  const [activeProvider, setActiveProvider] = useState<WalletProvider>(() => getActiveWalletProvider());
-  const [flowState, setFlowState] = useState<FlowState>("checking");
+  const [activeProvider] = useState(() => getActiveWalletProvider());
+  const [flowState, setFlowState] = useState<FlowState>("idle");
   const [error, setError] = useState<string | null>(null);
   const [registeredId, setRegisteredId] = useState<number | null>(null);
 
-  useEffect(() => {
-    if (!selectedWallet) {
-      router.replace("/login");
-      return;
-    }
-    if (normalizeToRedirect(selectedWallet)) {
-      router.replace("/login/lobstr");
-      return;
-    }
-    (async () => {
-      try {
-        const connected = await checkConnection(selectedWallet);
-        if (connected) {
-          const address = await getWalletAddress(selectedWallet);
-          if (address) {
-            setWalletAddress(address);
-          }
-        }
-      } catch {}
-      setFlowState("idle");
-    })();
-  }, [router, selectedWallet]);
-
-  const providerStatus = useMemo(
-    () => (selectedWallet ? getWalletProviderStatus(selectedWallet) : null),
-    [selectedWallet]
-  );
-
-  const handleConnect = useCallback(async () => {
-    if (!selectedWallet || !walletOption) return;
-
-    setFlowState("connecting");
-    setError(null);
-    setRegisteredId(null);
-
-    try {
-      const address = await connectWallet(selectedWallet);
-      setActiveProvider(selectedWallet);
+  const handleConnected = useCallback(
+    async (address: string) => {
       setWalletAddress(address);
 
-      if (walletOption.capability === "coming_soon") {
+      if (!walletOption || walletOption.capability === "coming_soon") {
         setFlowState("success");
         return;
       }
 
       setFlowState("registering");
-      let walletId = extractWalletId(await getWalletIdByAddress(address, address));
+      try {
+        let walletId = extractWalletId(await getWalletIdByAddress(address, address));
 
-      if (!walletId || walletId === 0) {
-        await registerWallet(address);
-        walletId = extractWalletId(await getWalletIdByAddress(address, address));
+        if (!walletId || walletId === 0) {
+          await registerWallet(address);
+          walletId = extractWalletId(await getWalletIdByAddress(address, address));
+        }
+
+        setRegisteredId(walletId ?? null);
+        setFlowState("success");
+
+        window.setTimeout(() => {
+          router.push("/dashboard");
+        }, 1800);
+      } catch (err) {
+        setFlowState("error");
+        setError(err instanceof Error ? err.message : "Registration failed");
       }
+    },
+    [router, walletOption]
+  );
 
-      setRegisteredId(walletId ?? null);
-      setFlowState("success");
+  const handleError = useCallback((errorMsg: string) => {
+    setFlowState("error");
+    setError(errorMsg);
+  }, []);
 
-      window.setTimeout(() => {
-        router.push("/dashboard");
-      }, 1800);
-    } catch (err) {
-      setFlowState("error");
-      setError(err instanceof Error ? err.message : "Connection failed");
-    }
-  }, [router, selectedWallet, walletOption]);
-
-  if (!walletOption || !providerStatus) return null;
+  if (!walletOption) return null;
 
   const primaryLabel =
     flowState === "connecting"
-      ? `Connecting ${walletOption.name}...`
+      ? "Connecting LOBSTR..."
       : flowState === "registering"
       ? "Registering wallet on-chain..."
       : flowState === "success"
       ? registeredId
         ? "Wallet ready"
-        : walletOption.capability === "coming_soon"
-        ? "Route available"
         : "Connected"
-      : `Continue with ${walletOption.name}`;
+      : "Connect with LOBSTR";
 
   return (
     <div className="relative flex min-h-screen flex-col overflow-hidden bg-[var(--parchment)]">
@@ -177,8 +133,8 @@ export default function WalletProviderLoginPage() {
       <FloatingHeader />
       <DockHeader
         walletAddress={walletAddress}
-        walletProvider={activeProvider ?? selectedWallet}
-        onConnect={handleConnect}
+        walletProvider={activeProvider}
+        onConnect={() => {}}
         onDisconnect={() => setWalletAddress(null)}
         isConnecting={flowState === "connecting" || flowState === "registering"}
       />
@@ -216,28 +172,18 @@ export default function WalletProviderLoginPage() {
 
                 <div className="mt-7 space-y-3">
                   <StepRow
-                    title="Detect wallet"
-                    description={providerStatus.message}
-                    state={providerStatus.available ? "done" : flowState === "checking" ? "active" : "pending"}
+                    title="Scan QR Code"
+                    description="Use the LOBSTR mobile app to scan the QR code and connect your wallet."
+                    state={walletAddress ? "done" : flowState === "connecting" ? "active" : "pending"}
                   />
                   <StepRow
-                    title="Connect account"
-                    description={`Request address access from ${walletOption.name} and remember it as the active provider for later sessions.`}
-                    state={
-                      walletAddress
-                        ? "done"
-                        : flowState === "connecting"
-                        ? "active"
-                        : "pending"
-                    }
+                    title="Approve connection"
+                    description="In your LOBSTR app, approve the connection request to continue."
+                    state={walletAddress ? "done" : flowState === "connecting" ? "active" : "pending"}
                   />
                   <StepRow
                     title="Register and continue"
-                    description={
-                      walletOption.capability === "coming_soon"
-                        ? "This route is ready for future provider support, but on-chain browser flow is not enabled yet."
-                        : "If the wallet is new to WalletGraph, create its on-chain identity before moving into the dashboard."
-                    }
+                    description="If new to WalletGraph, create your on-chain identity before moving to the dashboard."
                     state={
                       registeredId
                         ? "done"
@@ -251,9 +197,9 @@ export default function WalletProviderLoginPage() {
                 <div className="mt-7 rounded-[24px] border border-white/60 bg-white/50 p-5">
                   <p className="text-[10px] uppercase tracking-[0.22em] text-[var(--stone)]">Route notes</p>
                   <div className="mt-3 space-y-2 text-sm leading-6 text-[var(--stone)]">
-                    <p>Local status: <span className="font-semibold text-[var(--dark-ink)]">{providerStatus.label}</span></p>
+                    <p>Connection: <span className="font-semibold text-[var(--dark-ink)]">QR Code via WalletConnect</span></p>
                     <p>Signing: <span className="font-semibold text-[var(--dark-ink)]">{walletOption.signSupportLabel}</span></p>
-                    <p>Fallback: <span className="font-semibold text-[var(--dark-ink)]">Freighter remains the safest full-featured route.</span></p>
+                    <p>Download: <a href="https://lobstr.co/" target="_blank" rel="noopener noreferrer" className="text-[var(--forest)] underline hover:no-underline">Get LOBSTR App</a></p>
                   </div>
                 </div>
               </div>
@@ -268,18 +214,13 @@ export default function WalletProviderLoginPage() {
                   <div>
                     <p className="text-[10px] uppercase tracking-[0.22em] text-[var(--stone)]">Provider route</p>
                     <h2 className="mt-2 text-3xl font-heading font-bold text-[var(--dark-ink)]">
-                      Connect with confidence
+                      {primaryLabel}
                     </h2>
                   </div>
-                  {activeProvider === selectedWallet && (
-                    <span className="rounded-full border border-[var(--amber-sap)]/20 bg-[var(--amber-sap)]/10 px-3 py-1 text-[10px] uppercase tracking-[0.2em] text-[var(--terra)]">
-                      Last selected provider
-                    </span>
-                  )}
                 </div>
 
                 <p className="mt-4 max-w-2xl text-sm leading-6 text-[var(--stone)]">
-                  This route handles provider detection, address connection, wallet registration, and dashboard handoff in one place. If an extension is missing or lacks signing APIs, the screen explains that before you hit a dead end.
+                  Connect your LOBSTR mobile wallet by scanning the QR code. Make sure you have the LOBSTR app installed on your phone and have it ready to scan.
                 </p>
 
                 {error && (
@@ -290,14 +231,14 @@ export default function WalletProviderLoginPage() {
 
                 <div className="mt-6 grid gap-4 md:grid-cols-2">
                   <div className="rounded-[24px] border border-white/70 bg-white/50 p-5">
-                    <p className="text-[10px] uppercase tracking-[0.22em] text-[var(--stone)]">Detected in browser</p>
+                    <p className="text-[10px] uppercase tracking-[0.22em] text-[var(--stone)]">Connection method</p>
                     <div className="mt-3 flex items-center gap-3">
-                      <span className={`h-3 w-3 rounded-full ${providerStatus.available ? "bg-[var(--forest)]" : providerStatus.comingSoon ? "bg-[var(--stone)]" : "bg-[var(--terra)]"}`} />
-                      <span className="text-base font-semibold text-[var(--dark-ink)]">
-                        {providerStatus.available ? "Available now" : providerStatus.comingSoon ? "Planned route" : "Not detected"}
-                      </span>
+                      <span className="h-3 w-3 rounded-full bg-[var(--forest)]" />
+                      <span className="text-base font-semibold text-[var(--dark-ink)]">WalletConnect</span>
                     </div>
-                    <p className="mt-3 text-sm leading-6 text-[var(--stone)]">{providerStatus.message}</p>
+                    <p className="mt-3 text-sm leading-6 text-[var(--stone)]">
+                      Secure QR code handshake between your mobile wallet and this browser.
+                    </p>
                   </div>
 
                   <div className="rounded-[24px] border border-white/70 bg-white/50 p-5">
@@ -311,47 +252,33 @@ export default function WalletProviderLoginPage() {
                       </>
                     ) : (
                       <p className="mt-3 text-sm leading-6 text-[var(--stone)]">
-                        No address connected yet. Once you continue, we’ll request access and prepare the wallet for WalletGraph.
+                        No address connected yet. Click connect to scan QR code.
                       </p>
                     )}
                   </div>
                 </div>
 
-                <div className="mt-7 flex flex-col gap-3 sm:flex-row">
-                  <button
-                    onClick={handleConnect}
-                    disabled={flowState === "checking" || flowState === "connecting" || flowState === "registering"}
-                    className="btn-forest min-h-14 flex-1 text-base"
-                  >
-                    {primaryLabel}
-                  </button>
-
-                  {walletOption.installUrl && !providerStatus.available && !providerStatus.comingSoon && (
-                    <a
-                      href={walletOption.installUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="btn-outline min-h-14 flex-1"
-                    >
-                      Install {walletOption.name}
-                    </a>
-                  )}
+                <div className="mt-7 flex flex-col items-center">
+                  <LobstrConnect
+                    onConnected={handleConnected}
+                    onError={handleError}
+                  />
                 </div>
 
                 <div className="mt-6 rounded-[24px] border border-[var(--faded-sage)]/80 bg-white/45 p-5">
-                  <p className="text-[10px] uppercase tracking-[0.22em] text-[var(--stone)]">Why this is more robust now</p>
+                  <p className="text-[10px] uppercase tracking-[0.22em] text-[var(--stone)]">How it works</p>
                   <div className="mt-3 grid gap-3 sm:grid-cols-3">
                     <div>
-                      <p className="text-sm font-semibold text-[var(--dark-ink)]">Per-wallet routing</p>
-                      <p className="mt-1 text-xs leading-5 text-[var(--stone)]">Each provider gets its own route instead of being funneled through one hardcoded login assumption.</p>
+                      <p className="text-sm font-semibold text-[var(--dark-ink)]">1. Tap Connect</p>
+                      <p className="mt-1 text-xs leading-5 text-[var(--stone)]">Click the button above to generate a QR code.</p>
                     </div>
                     <div>
-                      <p className="text-sm font-semibold text-[var(--dark-ink)]">Capability awareness</p>
-                      <p className="mt-1 text-xs leading-5 text-[var(--stone)]">The UI distinguishes install state, connection state, and signing support before the contract call fails.</p>
+                      <p className="text-sm font-semibold text-[var(--dark-ink)]">2. Scan with LOBSTR</p>
+                      <p className="mt-1 text-xs leading-5 text-[var(--stone)]">Open your LOBSTR app and scan the code displayed.</p>
                     </div>
                     <div>
-                      <p className="text-sm font-semibold text-[var(--dark-ink)]">Forward-compatible flow</p>
-                      <p className="mt-1 text-xs leading-5 text-[var(--stone)]">Future wallets like LOBSTR already have a real route and presentation model ready to expand.</p>
+                      <p className="text-sm font-semibold text-[var(--dark-ink)]">3. Approve</p>
+                      <p className="mt-1 text-xs leading-5 text-[var(--stone)]">Confirm in your app to finalize connection.</p>
                     </div>
                   </div>
                 </div>

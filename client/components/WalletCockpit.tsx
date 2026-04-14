@@ -63,14 +63,14 @@ export function BalanceOverview({ walletAddress }: { walletAddress: string }) {
     void refreshBalance();
   }, [refreshBalance]);
 
-  return (
-    <div className="grid gap-4 sm:grid-cols-3">
+return (
+    <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
       {/* XLM Balance */}
-      <div className="wallet-panel rounded-[1.6rem] p-6 sm:col-span-2">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/50 bg-white/70 shadow-sm">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--forest)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <div className="wallet-panel rounded-[1.6rem] p-4 sm:p-6 sm:col-span-2">
+        <div className="flex items-center justify-between mb-3 sm:mb-4">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="flex h-8 sm:h-10 w-8 sm:w-10 items-center justify-center rounded-xl border border-white/50 bg-white/70 shadow-sm">
+              <svg width="16 sm:20" height="16 sm:20" viewBox="0 0 24 24" fill="none" stroke="var(--forest)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M21 12V7H5a2 2 0 0 1 0-4h14v4" />
                 <path d="M3 5v14a2 2 0 0 0 2 2h16v-5" />
                 <path d="M18 12a2 2 0 0 0 0 4h4v-4Z" />
@@ -78,7 +78,7 @@ export function BalanceOverview({ walletAddress }: { walletAddress: string }) {
             </div>
             <div>
               <p className="text-[10px] uppercase tracking-[0.22em] text-[var(--stone)]">XLM Balance</p>
-              <p className="font-mono-data text-xs text-[var(--stone)]">{NETWORK} ledger</p>
+              <p className="text-[10px] sm:text-xs text-[var(--stone)] font-mono-data">{NETWORK} ledger</p>
             </div>
           </div>
           <button
@@ -103,7 +103,7 @@ export function BalanceOverview({ walletAddress }: { walletAddress: string }) {
           </button>
         </div>
 
-        <p className="text-4xl font-heading font-bold text-[var(--dark-ink)]">
+        <p className="text-3xl sm:text-4xl font-heading font-bold text-[var(--dark-ink)]">
           {isRefreshing ? (
             <span className="text-xl text-[var(--stone)]">Loading…</span>
           ) : (

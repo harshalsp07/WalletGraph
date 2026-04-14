@@ -84,9 +84,9 @@ export default function DockHeader({
   if (!mounted) return null;
 
   return (
-    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 animate-fade-in-up">
+    <div className="fixed bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 z-50 animate-fade-in-up">
       <div
-        className="dock-container flex items-center px-3 py-2 rounded-2xl border border-[var(--faded-sage)]/50 backdrop-blur-2xl shadow-[0_8px_32px_rgba(44,44,43,0.12),inset_0_1px_0_rgba(255,255,255,0.5)]"
+        className="dock-container flex items-center px-2 sm:px-3 py-2 rounded-2xl border border-[var(--faded-sage)]/50 backdrop-blur-2xl shadow-[0_8px_32px_rgba(44,44,43,0.12),inset_0_1px_0_rgba(255,255,255,0.5)]"
         style={{ background: "rgba(250, 249, 246, 0.9)" }}
       >
         {navItems.map((item) => {
@@ -100,7 +100,7 @@ export default function DockHeader({
               key={item.path}
               href={item.path}
               className={`
-                dock-item relative flex flex-col items-center gap-1 px-4 py-2 rounded-xl
+                dock-item relative flex flex-col items-center gap-0.5 sm:gap-1 px-2 sm:px-4 py-2 sm:py-2 rounded-xl min-w-[44px] sm:min-w-0
                 ${active ? "text-[var(--forest)]" : "text-[var(--stone)] hover:text-[var(--dark-ink)]"}
               `}
               style={{
@@ -128,7 +128,7 @@ export default function DockHeader({
           <button
             onClick={onConnect}
             disabled={isConnecting}
-            className="dock-item flex flex-col items-center gap-1 px-4 py-2 rounded-xl text-[var(--forest)] hover:bg-[var(--forest)]/5 cursor-pointer"
+            className="dock-item flex flex-col items-center gap-0.5 sm:gap-1 px-2 sm:px-4 py-2 rounded-xl min-w-[44px] sm:min-w-0 text-[var(--forest)] hover:bg-[var(--forest)]/5 cursor-pointer"
           >
             {isConnecting ? (
               <svg className="animate-spin" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

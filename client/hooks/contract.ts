@@ -161,6 +161,18 @@ export function getWalletProviderStatus(provider: WalletProvider): WalletProvide
     };
   }
 
+  if (provider === "lobstr") {
+    return {
+      provider,
+      available: true,
+      canConnect: true,
+      canSign: false,
+      comingSoon: false,
+      label: "Mobile wallet",
+      message: "Connect via QR code from your LOBSTR mobile app. Download the app and scan the code.",
+    };
+  }
+
   return {
     provider,
     available: false,
@@ -211,8 +223,12 @@ export async function connectWallet(provider: WalletProvider = "freighter"): Pro
   setActiveWalletProvider(provider);
   const status = getWalletProviderStatus(provider);
 
+  if (provider === "lobstr") {
+    throw new Error("Please use the LOBSTR login page to connect via QR code.");
+  }
+
   if (status.comingSoon) {
-    throw new Error("LOBSTR support is coming soon. Please choose Freighter, Rabet, or xBull for now.");
+    throw new Error("This wallet is Coming soon. Please choose another wallet.");
   }
 
   if (provider === "rabet") {

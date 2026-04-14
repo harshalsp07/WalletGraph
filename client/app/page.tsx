@@ -497,7 +497,7 @@ export default function Home() {
         <div className="tree-container">
 
           {/* SVG tree */}
-          <div className="tree-svg-wrapper">
+          <div className="tree-svg-wrapper w-full max-w-[400px] sm:max-w-[500px] md:max-w-[600px] lg:max-w-[700px]">
             <TreeSVG progress={scrollProgress} />
           </div>
 
