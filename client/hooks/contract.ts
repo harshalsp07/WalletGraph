@@ -69,9 +69,9 @@ type InjectedRabet = {
 };
 
 type InjectedXBull = {
-  getAddress?: () => Promise<string>;
-  connect?: () => Promise<unknown>;
-  signTransaction?: (xdr: string, opts?: { network: string }) => Promise<{ signedTxXdr?: string; xdr?: string } | string>;
+  getPublicKey?: () => Promise<string>;
+  connect?: (permissions: { canRequestPublicKey: boolean; canRequestSign: boolean }) => Promise<unknown>;
+  signXDR?: (xdr: string, opts?: { networkPassphrase?: string; address?: string }) => Promise<{ signedTxXdr?: string } | string>;
 };
 
 export type WalletProviderStatus = {
@@ -145,7 +145,7 @@ export function getWalletProviderStatus(provider: WalletProvider): WalletProvide
   if (provider === "xbull") {
     const xbull = getXBullProvider();
     const installed = !!xbull;
-    const canSign = !!xbull?.signTransaction;
+    const canSign = !!xbull?.signXDR;
     return {
       provider,
       available: installed,
@@ -207,9 +207,9 @@ export async function checkConnection(provider: WalletProvider = getActiveWallet
 
   if (provider === "xbull") {
     const xbull = getXBullProvider();
-    if (!xbull?.getAddress) return false;
+    if (!xbull?.getPublicKey) return false;
     try {
-      const address = await xbull.getAddress();
+      const address = await xbull.getPublicKey();
       return !!address;
     } catch {
       return false;
@@ -255,12 +255,12 @@ export async function connectWallet(provider: WalletProvider = "freighter"): Pro
       throw new Error("xBull wallet extension not detected.");
     }
     if (xbull.connect) {
-      await xbull.connect();
+      await xbull.connect({ canRequestPublicKey: true, canRequestSign: true });
     }
-    if (!xbull.getAddress) {
-      throw new Error("xBull wallet API is missing getAddress().");
+    if (!xbull.getPublicKey) {
+      throw new Error("xBull wallet API is missing getPublicKey().");
     }
-    const address = await xbull.getAddress();
+    const address = await xbull.getPublicKey();
     if (!address) {
       throw new Error("Could not retrieve wallet address from xBull.");
     }
@@ -296,8 +296,8 @@ export async function getWalletAddress(provider: WalletProvider = getActiveWalle
 
     if (provider === "xbull") {
       const xbull = getXBullProvider();
-      if (!xbull?.getAddress) return null;
-      const address = await xbull.getAddress();
+      if (!xbull?.getPublicKey) return null;
+      const address = await xbull.getPublicKey();
       return address || null;
     }
 
@@ -360,11 +360,11 @@ async function signWalletTransaction(xdr: string): Promise<string> {
 
   if (walletProvider === "xbull") {
     const xbull = getXBullProvider();
-    if (!xbull?.signTransaction) {
+    if (!xbull?.signXDR) {
       throw new Error("xBull signing is unavailable. Use Freighter for transaction signing.");
     }
-    const signed = await xbull.signTransaction(xdr, { network: NETWORK });
-    return typeof signed === "string" ? signed : (signed.signedTxXdr ?? signed.xdr ?? "");
+    const signed = await xbull.signXDR(xdr, { networkPassphrase: NETWORK_PASSPHRASE });
+    return typeof signed === "string" ? signed : (signed.signedTxXdr ?? "");
   }
 
   throw new Error("Selected wallet provider cannot sign transactions yet.");
