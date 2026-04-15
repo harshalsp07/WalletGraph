@@ -27,10 +27,32 @@
 
 ---
 
+## 🔄 CI/CD Pipeline
+
+<div align="center">
+  <img width="1410" height="744" alt="CI/CD Pipeline" src="https://github.com/user-attachments/assets/85b04551-4cb5-4790-b9c2-b4607a3b2f84" />
+</div>
+
+Our automated CI/CD pipeline ensures code quality and reliable deployments through GitHub Actions.
+
+---
+
+## 📱 Mobile View
+
+<div align="center">
+  <img width="540" height="1200" alt="Mobile View Animation" src="https://github.com/user-attachments/assets/3861b4de-e820-4e22-8107-24898655570c" />
+</div>
+
+The application is fully responsive, providing a seamless experience on mobile devices.
+
+---
+
 ## 📋 Table of Contents
 
 - [Project Title](#-wallet-reputation-graph)
 - [Live Demo Video](#-live-demo-video)
+- [CI/CD Pipeline](#-cicd-pipeline)
+- [Mobile View](#-mobile-view)
 - [Project Description](#-project-description)
 - [Product Showcase](#-product-showcase)
 - [Project Vision](#-project-vision)
@@ -372,11 +394,18 @@ Implement an optional score decay model where interactions older than a configur
 
 ### 🌉 Cross-Chain Reputation Bridging
 Explore bridges to import reputation signals from other blockchains (Ethereum ENS scores, Lens Protocol, etc.) via Stellar-compatible oracles, creating a unified multi-chain reputation identity for power users.
-## Contract Details:
-Contract ID:CDHR3VDMHNWYXAF6ZNJEVUQWOU6P7TP45OMWOYM3TLACOZOEOIPJOOSX 
-<img width="1574" height="872" alt="image" src="https://github.com/user-attachments/assets/bbb0f658-7d73-4d2a-a160-e0fa406e95a8" />
 
+---
 
+## 📋 Contract Details
+
+| Property | Value |
+|---|---|
+| **Contract ID** | `CDHR3VDMHNWYXAF6ZNJEVUQWOU6P7TP45OMWOYM3TLACOZOEOIPJOOSX` |
+
+<div align="center">
+  <img width="1000" height="600" alt="Contract Interface" src="https://github.com/user-attachments/assets/bbb0f658-7d73-4d2a-a160-e0fa406e95a8" />
+</div>
 
 ---
 

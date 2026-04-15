@@ -28,7 +28,8 @@ export default function LobstrConnect({ onConnected, onError }: LobstrConnectPro
     async function loadAdapter() {
       try {
         const { WalletConnectAdapter } = await import("stellar-wallet-kit");
-        const wca = new WalletConnectAdapter("walletgraph");
+        const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || "c1b504627d31fe1de769dfdcd7bcbd13";
+        const wca = new WalletConnectAdapter(projectId);
 
         if (!cancelled) {
           setAdapter(wca as unknown as {
