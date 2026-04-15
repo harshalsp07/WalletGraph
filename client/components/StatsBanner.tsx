@@ -11,25 +11,26 @@ interface StatsBannerProps {
 }
 
 function AnimatedCounter({ value }: { value: number }) {
-  const [displayValue, setDisplayValue] = useState(() => value <= 0 ? 0 : 0);
+  const [displayValue, setDisplayValue] = useState(0);
   const ref = useRef<HTMLSpanElement>(null);
 
   useEffect(() => {
-    if (value <= 0) {
-      // @ts-expect-error - initializing state based on props is a valid pattern
-      setDisplayValue(0);
-      return;
-    }
-
     let start: number | null = null;
     const duration = 1500;
     let rafId: number;
+    let cancelled = false;
 
     const animateCounter = (timestamp: number) => {
+      if (cancelled) return;
+
+      if (value <= 0) {
+        setDisplayValue(0);
+        return;
+      }
+
       if (!start) start = timestamp;
       const progress = Math.min((timestamp - start) / duration, 1);
       const eased = 1 - Math.pow(1 - progress, 3);
-      // @ts-expect-error - updating display value during animation is a valid pattern
       setDisplayValue(Math.round(eased * value));
       if (progress < 1) {
         rafId = requestAnimationFrame(animateCounter);
@@ -37,7 +38,10 @@ function AnimatedCounter({ value }: { value: number }) {
     };
 
     rafId = requestAnimationFrame(animateCounter);
-    return () => cancelAnimationFrame(rafId);
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(rafId);
+    };
   }, [value]);
 
   return <span ref={ref}>{displayValue}</span>;

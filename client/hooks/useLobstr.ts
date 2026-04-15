@@ -1,7 +1,6 @@
 "use client";
 
-import { WalletType, useWallet } from "stellar-wallet-kit";
-import { useCallback, useState, useEffect } from "react";
+import { useCallback, useState } from "react";
 
 export type LobstrConnectionState = "idle" | "connecting" | "connected" | "error";
 
@@ -21,51 +20,54 @@ type UseLobstrResult = LobstrState & LobstrActions;
 const LOBSTR_APP_URL = "https://lobstr.co/";
 const ACTIVE_WALLET_KEY = "walletgraph.activeWallet";
 
+/**
+ * useLobstr — standalone hook that dynamically loads stellar-wallet-kit's
+ * WalletConnectAdapter for LOBSTR wallet connections.
+ * Does NOT require a global WalletProvider context.
+ */
 export function useLobstr(): UseLobstrResult {
   const [address, setAddress] = useState<string | null>(null);
   const [connectionState, setConnectionState] = useState<LobstrConnectionState>("idle");
   const [error, setError] = useState<string | null>(null);
-
-  const { connect, disconnect: disconnectWallet, isConnected, account } = useWallet();
-
-  useEffect(() => {
-    if (isConnected && account?.address) {
-      // @ts-expect-error - syncing wallet state from external API is valid
-      setAddress(account.address);
-      // @ts-expect-error - syncing wallet state from external API is valid
-      setConnectionState("connected");
-      // @ts-expect-error - syncing wallet state from external API is valid
-      setError(null);
-      if (typeof window !== "undefined") {
-        window.localStorage.setItem(ACTIVE_WALLET_KEY, "lobstr");
-      }
-    }
-  }, [isConnected, account]);
 
   const connectLobstr = useCallback(async (): Promise<string | null> => {
     setConnectionState("connecting");
     setError(null);
 
     try {
-      await connect(WalletType.LOBSTR);
-      return account?.address ?? null;
+      const { WalletConnectAdapter } = await import("stellar-wallet-kit");
+      const adapter = new WalletConnectAdapter("walletgraph");
+
+      await adapter.connect();
+      const publicKey = await adapter.getPublicKey();
+
+      if (publicKey) {
+        setAddress(publicKey);
+        setConnectionState("connected");
+        if (typeof window !== "undefined") {
+          window.localStorage.setItem(ACTIVE_WALLET_KEY, "lobstr");
+        }
+        return publicKey;
+      }
+
+      setConnectionState("idle");
+      return null;
     } catch (err) {
       const message = err instanceof Error ? err.message : "Connection failed";
       setError(message);
       setConnectionState("error");
       return null;
     }
-  }, [connect, account]);
+  }, []);
 
   const disconnect = useCallback(async () => {
-    await disconnectWallet();
     setAddress(null);
     setConnectionState("idle");
     setError(null);
     if (typeof window !== "undefined") {
       window.localStorage.removeItem(ACTIVE_WALLET_KEY);
     }
-  }, [disconnectWallet]);
+  }, []);
 
   return {
     address,
