@@ -19,7 +19,7 @@ describe("wallets", () => {
     });
 
     it("returns null for unknown provider", () => {
-      const result = getWalletOption("unknown");
+      const result = getWalletOption("unknown" as any);
       expect(result).toBeNull();
     });
   });
