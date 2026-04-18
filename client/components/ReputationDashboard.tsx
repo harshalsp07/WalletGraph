@@ -628,6 +628,22 @@ export default function ReputationDashboard({ walletAddress, onConnect, isConnec
                       <span className="font-mono-data text-xs text-[var(--dark-ink)]/60">Ledger #{reputation.last_updated}</span>
                     </div>
 
+                    <div className="mt-4 pt-4 border-t border-[var(--faded-sage)]">
+                      <a
+                        href={`/wallet/${reputation.wallet_id}`}
+                        className="flex items-center justify-center gap-2 w-full py-3 rounded-xl border-2 border-dashed border-[var(--faded-sage)] text-sm font-semibold text-[var(--forest)] hover:bg-[var(--forest)]/5 hover:border-[var(--forest)]/40 transition-all"
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <circle cx="18" cy="5" r="3" />
+                          <circle cx="6" cy="12" r="3" />
+                          <circle cx="18" cy="19" r="3" />
+                          <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+                          <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+                        </svg>
+                        View Public Profile
+                      </a>
+                    </div>
+
                     {walletHistory.length > 0 && (
                       <div className="mt-5 pt-4 border-t border-[var(--faded-sage)] space-y-4 animate-fade-in-up">
                         <div className="flex items-center justify-between">
