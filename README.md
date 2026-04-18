@@ -409,6 +409,21 @@ Explore bridges to import reputation signals from other blockchains (Ethereum EN
 
 ---
 
+## 📝 Feedback
+
+We'd love to hear your thoughts! Help us improve WalletGraph by sharing your feedback:
+
+<div align="center">
+
+| Feedback Type | Link |
+|---|---|
+| 💼 **Response Data Collection** | [Google Sheets](https://docs.google.com/spreadsheets/d/1LeWtIn1Gc0lEMhISqLlrBRDt4y3MR1yQUj78Vfv5K_0/edit?usp=sharing) |
+| ⭐ **Rate the Website** | [Google Forms](https://forms.gle/PwVY4yJUobUFv7ig9) |
+
+</div>
+
+---
+
 ## 📄 License
 
 This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for details.
