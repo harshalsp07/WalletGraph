@@ -13,8 +13,12 @@ import {
   getActiveWalletProvider,
   getWalletAddress,
   viewGlobalStats,
+  getWalletIdByAddress,
+  viewWalletReputation,
   type WalletProvider,
 } from "@/hooks/contract";
+
+import ShareProfileCard from "@/components/ShareProfileCard";
 
 // ── Welcome Header ──────────────────────────────────────────
 
@@ -220,6 +224,11 @@ export default function DashboardPage() {
     total_endorsements: 0,
     total_reports: 0,
   });
+  const [walletId, setWalletId] = useState<number | null>(null);
+  const [userReputation, setUserReputation] = useState<{
+    score: number;
+    endorsement_count: number;
+  } | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -274,6 +283,28 @@ export default function DashboardPage() {
   const handleOnboardingComplete = useCallback(() => {
     setShowOnboarding(false);
   }, []);
+
+  useEffect(() => {
+    (async () => {
+      if (walletAddress) {
+        try {
+          const id = await getWalletIdByAddress(walletAddress);
+          if (id && typeof id === "object" && "value" in id) {
+            const numericId = Number((id as { value: bigint }).value);
+            setWalletId(numericId);
+            const rep = await viewWalletReputation(numericId);
+            if (rep && typeof rep === "object") {
+              const r = rep as Record<string, unknown>;
+              setUserReputation({
+                score: Number(r.score ?? 0),
+                endorsement_count: Number(r.endorsement_count ?? 0),
+              });
+            }
+          }
+        } catch { /* Ignore */ }
+      }
+    })();
+  }, [walletAddress]);
 
   if (!walletAddress) {
     return (
@@ -331,6 +362,18 @@ export default function DashboardPage() {
       <main className="relative z-10 flex flex-1 flex-col items-center px-4 sm:px-6 py-10">
         <div className="w-full max-w-4xl">
           <WelcomeHeader address={walletAddress} />
+          
+          {walletId && userReputation && (
+            <div className="mb-6 animate-fade-in-up-delayed">
+              <ShareProfileCard
+                walletId={walletId}
+                walletAddress={walletAddress ?? undefined}
+                score={userReputation.score}
+                endorsements={userReputation.endorsement_count}
+              />
+            </div>
+          )}
+          
           <QuickStats stats={globalStats} />
 
           {/* Dashboard Tab Bar */}

@@ -13,6 +13,22 @@
 
 ---
 
+## 🚀 Live Demo
+
+<div align="center">
+
+| Deploy | Link |
+|---|---|
+| 🌐 **Live App** | [WalletGraph Live Demo](https://harshal.great-site.net/) |
+| 📱 **Platform** | Vercel (Frontend) |
+| 🔗 **Network** | Stellar Testnet |
+
+*Try it now — connect your wallet, register, and endorse or report another wallet.*
+
+</div>
+
+---
+
 ## 🎥 Live Demo Video
 
 <div align="center">
@@ -50,7 +66,9 @@ The application is fully responsive, providing a seamless experience on mobile d
 ## 📋 Table of Contents
 
 - [Project Title](#-wallet-reputation-graph)
+- [Live Demo](#-live-demo)
 - [Live Demo Video](#-live-demo-video)
+- [Testnet User Validation](#-testnet-user-validation)
 - [CI/CD Pipeline](#-cicd-pipeline)
 - [Mobile View](#-mobile-view)
 - [Project Description](#-project-description)
@@ -62,6 +80,10 @@ The application is fully responsive, providing a seamless experience on mobile d
   - [Storage Design](#storage-design)
   - [Contract Functions](#contract-functions)
 - [Score Mechanics](#-score-mechanics)
+- [Feedback & Iteration](#-feedback--iteration)
+  - [User Testing Results](#-user-testing-results)
+  - [Improvements Based on Feedback](#-improvements-based-on-feedback)
+  - [Planned Improvements](#-planned-improvements)
 - [Getting Started](#-getting-started)
   - [Prerequisites](#prerequisites)
   - [Build](#build)
@@ -409,9 +431,7 @@ Explore bridges to import reputation signals from other blockchains (Ethereum EN
 
 ---
 
-## 📝 Feedback
-
-We'd love to hear your thoughts! Help us improve WalletGraph by sharing your feedback:
+## 📝 Feedback & Iteration
 
 <div align="center">
 
@@ -421,6 +441,22 @@ We'd love to hear your thoughts! Help us improve WalletGraph by sharing your fee
 | ⭐ **Rate the Website** | [Google Forms](https://forms.gle/PwVY4yJUobUFv7ig9) |
 
 </div>
+
+---
+
+### 🔄 Planned Improvements Based on User Feedback
+
+*Based on the user feedback during testing, the following improvements are planned:*
+- [✔] **Shareable public profile link** — give the user a way to share there wallet reputation and give them a sharable link
+- [] **Fix wallet connection flow** — Improve LOBSTR session handling and provide clearer connection status
+- [] **Add onboarding wizard** — Step-by-step guided flow for first-time users
+- [] **Enhance graph visualization** — Show actor details (who endorsed/reported) in the graph
+- [] **Add loading states** — Clearer progress indicators during async operations
+- [] **Improve error messages** — User-friendly error handling instead of silent failures
+
+---
+
+We'd love to hear your thoughts! Help us improve WalletGraph by sharing your feedback.
 
 ---
 

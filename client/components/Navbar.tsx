@@ -7,6 +7,7 @@ import { NETWORK } from "@/hooks/contract";
 
 interface NavbarProps {
   walletAddress: string | null;
+  walletId?: number | null;
   onConnect: () => void;
   onDisconnect: () => void;
   isConnecting: boolean;
@@ -14,6 +15,7 @@ interface NavbarProps {
 
 export default function Navbar({
   walletAddress,
+  walletId,
   onConnect,
   onDisconnect,
   isConnecting,
@@ -236,6 +238,25 @@ export default function Navbar({
                             </svg>
                           </div>
                           <span className="font-medium">Dashboard</span>
+                        </Link>
+                      )}
+                      
+                      {walletId && (
+                        <Link
+                          href={`/wallet/${walletId}`}
+                          className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm text-[var(--forest)] hover:bg-[var(--forest)]/5 transition-all cursor-pointer group"
+                          onClick={() => setShowDropdown(false)}
+                        >
+                          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--parchment)] border border-[var(--faded-sage)] group-hover:bg-[var(--forest)]/10">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <circle cx="18" cy="5" r="3" />
+                              <circle cx="6" cy="12" r="3" />
+                              <circle cx="18" cy="19" r="3" />
+                              <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+                              <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+                            </svg>
+                          </div>
+                          <span className="font-medium">Share Profile</span>
                         </Link>
                       )}
                       
