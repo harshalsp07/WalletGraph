@@ -43,25 +43,6 @@
 
 ---
 
-## 🔄 CI/CD Pipeline
-
-<div align="center">
-  <img width="1410" height="744" alt="CI/CD Pipeline" src="https://github.com/user-attachments/assets/85b04551-4cb5-4790-b9c2-b4607a3b2f84" />
-</div>
-
-Our automated CI/CD pipeline ensures code quality and reliable deployments through GitHub Actions.
-
----
-
-## 📱 Mobile View
-
-<div align="center">
-  <img width="540" height="1200" alt="Mobile View Animation" src="https://github.com/user-attachments/assets/3861b4de-e820-4e22-8107-24898655570c" />
-</div>
-
-The application is fully responsive, providing a seamless experience on mobile devices.
-
----
 
 ## 📋 Table of Contents
 
@@ -111,7 +92,8 @@ The application pairs the Soroban smart contract with a clean frontend so users 
 ### Landing Page
 
 <div align="center">
-  <img width="1239" height="841" alt="Wallet Reputation Graph landing page" src="https://github.com/user-attachments/assets/698e88be-383b-45ae-ad98-9b87d6513e37" />
+  <img width="1906" height="905" alt="Screenshot 2026-04-22 222742" src="https://github.com/user-attachments/assets/79b7d9be-747a-4142-8e66-12b1470a7fe2" />
+
 </div>
 
 The landing page introduces the protocol, highlights live ecosystem stats, and guides new users into connecting their wallet and joining the reputation network.
@@ -119,16 +101,11 @@ The landing page introduces the protocol, highlights live ecosystem stats, and g
 ### Dashboard Overview
 
 <div align="center">
-  <img width="767" height="830" alt="Wallet Reputation Graph dashboard overview" src="https://github.com/user-attachments/assets/4152618f-8cea-4001-ad71-9dd8ca5c5f69" />
+  <img width="1886" height="841" alt="Screenshot 2026-04-22 222437" src="https://github.com/user-attachments/assets/c6578282-0cc0-429f-a329-bd1427cf1501" />
+
 </div>
 
 The dashboard is the main control center. From here, users can register a wallet, search any profile by wallet ID or Stellar address, and inspect current reputation metrics in one place.
-
-### Trust Actions: Endorse or Report
-
-<div align="center">
-  <img width="792" height="733" alt="Wallet dashboard actions for endorsing or reporting a project" src="https://github.com/user-attachments/assets/e4b97e6d-b7a6-4536-9d03-5fffdedb068b" />
-</div>
 
 - **Endorse a wallet:** submit a positive trust signal for reliable behavior. Each endorsement adds **+1** to the wallet score.
 - **Report a project or wallet:** flag suspicious or malicious activity so the community can react early. Each report deducts **−3** from the wallet score.
@@ -136,10 +113,73 @@ The dashboard is the main control center. From here, users can register a wallet
 ### Credibility View
 
 <div align="center">
-  <img width="772" height="788" alt="Wallet credibility and reputation view" src="https://github.com/user-attachments/assets/a4de4195-ac54-4500-a094-064c2ff735f5" />
+ <img width="1915" height="864" alt="Screenshot 2026-04-22 222206" src="https://github.com/user-attachments/assets/3a62956b-ce3d-4f17-992b-2feff215624b" />
+ in this image you can see how you can see the score of the wallet and who have endoresement for other people and which wallets are red and which are green flag
+
 </div>
 
 This view helps users quickly evaluate whether a wallet looks credible by surfacing its score, endorsement count, report count, and overall trust posture in an easy-to-read format.
+
+## Sharable profile 
+<div align="center">
+<img width="1010" height="862" alt="image" src="https://github.com/user-attachments/assets/c0aa2ad8-14ce-4bf0-99c9-52c98a3d4bec" />
+This is how your public profile would look if you want trust make the bio really good and better and good. you can also change the avatar of you and also can edit the bio and other things in the page
+</div>
+
+## Create On Block Certificates
+--step 1) Registor as the issuer on the app 
+<div align="center">
+<img width="1889" height="859" alt="Screenshot 2026-04-22 221832" src="https://github.com/user-attachments/assets/22947aa7-885c-4540-83a7-f09fc1d36ddb" />
+</div>
+--step 2) issue the certificate for the other users 
+<div align="center">
+<img width="1897" height="904" alt="Screenshot 2026-04-22 221517" src="https://github.com/user-attachments/assets/db8bdffb-8331-45ab-b0f5-fd3a1f4b7516" />
+</div>
+--step 3) the certificate is ready to share to the users 
+<div align="center">
+<img width="1878" height="870" alt="Screenshot 2026-04-22 221619" src="https://github.com/user-attachments/assets/a0df0453-8738-4d5f-b47a-862e6469f9e3" />
+</div>
+
+## Resolving the report (what if the flase report is wrong)
+--step 1) Go to Disputes and search for you wallet and challenge and type why do you think it is false report 
+<div align="center">
+<img width="1900" height="910" alt="image" src="https://github.com/user-attachments/assets/8d850f7a-6def-40d9-98a8-76725aba5f25" />
+</div>
+--step 2) now other based on the trust you gained in the society will vote for it and if you are true in 1 week the voting close and the majority will win
+<div align="center">
+<img width="1907" height="870" alt="Screenshot 2026-04-22 221935" src="https://github.com/user-attachments/assets/578faa93-70c3-4a64-bf7c-708457929c5d" />
+
+</div>
+
+## Global status
+<div align="center">
+<img width="1903" height="786" alt="Screenshot 2026-04-22 222124" src="https://github.com/user-attachments/assets/119ed7f7-fef5-4983-ae82-9c60db27efeb" />
+
+</div>
+
+
+## 🔄 CI/CD Pipeline
+
+<div align="center">
+  <img width="1410" height="744" alt="CI/CD Pipeline" src="https://github.com/user-attachments/assets/85b04551-4cb5-4790-b9c2-b4607a3b2f84" />
+</div>
+
+Our automated CI/CD pipeline ensures code quality and reliable deployments through GitHub Actions.
+
+---
+
+## 📱 Mobile View
+
+<div align="center">
+  <img width="540" height="1200" alt="Mobile View Animation" src="https://github.com/user-attachments/assets/3861b4de-e820-4e22-8107-24898655570c" />
+</div>
+
+The application is fully responsive, providing a seamless experience on mobile devices.
+
+---
+
+
+
 
 ---
 
