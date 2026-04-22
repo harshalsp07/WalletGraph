@@ -19,7 +19,7 @@
 
 | Deploy | Link |
 |---|---|
-| 🌐 **Live App** | [WalletGraph Live Demo](https://harshal.great-site.net/) |
+| 🌐 **Live App** | [WalletGraph Live Demo](https://walletgraphsp.vercel.app/) |
 | 📱 **Platform** | Vercel (Frontend) |
 | 🔗 **Network** | Stellar Testnet |
 
@@ -32,13 +32,13 @@
 ## 🎥 Live Demo Video
 
 <div align="center">
-  <a href="https://youtu.be/ROXrRNNsZAw">
-    <img src="https://img.youtube.com/vi/ROXrRNNsZAw/maxresdefault.jpg" alt="Wallet Reputation Graph Demo Video" width="800" style="border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.2);" />
+  <a href="https://youtu.be/g0p_6yV8gTU">
+    <img src="https://img.youtube.com/vi/g0p_6yV8gTU/maxresdefault.jpg" alt="Wallet Reputation Graph Demo Video" width="800" style="border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.2);" />
   </a>
   <br/>
   <br/>
   <em>🎬 Click the image above or the link to watch the full project walkthrough and demonstration.</em>
-  youtube link: https://youtu.be/ROXrRNNsZAw
+  youtube link: https://youtu.be/g0p_6yV8gTU
 </div>
 
 ---
@@ -427,10 +427,10 @@ Explore bridges to import reputation signals from other blockchains (Ethereum EN
 
 | Property | Value |
 |---|---|
-| **Contract ID** | `CDHR3VDMHNWYXAF6ZNJEVUQWOU6P7TP45OMWOYM3TLACOZOEOIPJOOSX` |
+| **Contract ID** | `CCLAXR2PHK2A2Z743YSK46EA6EXQ4PQAHH5KB7AABPCBKMPXWEVRYH5C` |
 
 <div align="center">
-  <img width="1000" height="600" alt="Contract Interface" src="https://github.com/user-attachments/assets/bbb0f658-7d73-4d2a-a160-e0fa406e95a8" />
+ <img width="1786" height="907" alt="image" src="https://github.com/user-attachments/assets/05a89037-afe0-400c-a51e-b28ca2760116" />
 </div>
 
 ---
