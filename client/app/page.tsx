@@ -13,6 +13,7 @@ import {
   viewGlobalStats,
   type WalletProvider,
 } from "@/hooks/contract";
+import { motion as motion_framer } from "motion/react";
 
 /* ──────────────────────────────────────────
    useScrollProgress — normalised 0‒1 value
@@ -133,30 +134,49 @@ function TreeSVG({ progress }: { progress: number }) {
       <defs>
         <filter id="treeShadow" x="-20%" y="-20%" width="140%" height="140%">
           <feDropShadow dx="0" dy="10" stdDeviation="8" floodColor="#2a4428" floodOpacity="0.25" />
+          <feDropShadow dx="3" dy="15" stdDeviation="14" floodColor="#1a2e18" floodOpacity="0.12" />
         </filter>
+        {/* Bark texture gradient — multi-stop for realism */}
         <linearGradient id="trunkG" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%" stopColor="#5a7a45" stopOpacity="0.6" />
-          <stop offset="35%" stopColor="#3d5c3b" stopOpacity="1" />
-          <stop offset="65%" stopColor="#4B6E48" stopOpacity="1" />
-          <stop offset="100%" stopColor="#5a7a45" stopOpacity="0.6" />
+          <stop offset="0%" stopColor="#6a8a55" stopOpacity="0.45" />
+          <stop offset="20%" stopColor="#4a6a3d" stopOpacity="0.9" />
+          <stop offset="40%" stopColor="#3d5c3b" stopOpacity="1" />
+          <stop offset="60%" stopColor="#4B6E48" stopOpacity="1" />
+          <stop offset="80%" stopColor="#3a5738" stopOpacity="0.92" />
+          <stop offset="100%" stopColor="#6a8a55" stopOpacity="0.45" />
         </linearGradient>
         <linearGradient id="brG" x1="0" y1="1" x2="0" y2="0">
-          <stop offset="0%" stopColor="#3d5c3b" stopOpacity="0.95" />
-          <stop offset="100%" stopColor="#6B8F4E" stopOpacity="0.5" />
+          <stop offset="0%" stopColor="#2e4a2c" stopOpacity="0.95" />
+          <stop offset="40%" stopColor="#3d5c3b" stopOpacity="0.85" />
+          <stop offset="100%" stopColor="#7aa05e" stopOpacity="0.4" />
         </linearGradient>
+        {/* Root gradient — earthy tones */}
         <linearGradient id="rootG" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#4B6E48" stopOpacity="0.8" />
-          <stop offset="100%" stopColor="#B2AC88" stopOpacity="0.3" />
+          <stop offset="0%" stopColor="#4B6E48" stopOpacity="0.85" />
+          <stop offset="50%" stopColor="#6a6a4a" stopOpacity="0.5" />
+          <stop offset="100%" stopColor="#B2AC88" stopOpacity="0.2" />
+        </linearGradient>
+        {/* Moss gradient for trunk accents */}
+        <linearGradient id="mossG" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#7aaa5e" stopOpacity="0.3" />
+          <stop offset="100%" stopColor="#4B6E48" stopOpacity="0.1" />
         </linearGradient>
         <radialGradient id="leafGlowR" cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stopColor="#6B8F4E" stopOpacity="0.4" />
+          <stop offset="0%" stopColor="#8aba6e" stopOpacity="0.5" />
+          <stop offset="60%" stopColor="#6B8F4E" stopOpacity="0.2" />
           <stop offset="100%" stopColor="#4B6E48" stopOpacity="0" />
         </radialGradient>
         <radialGradient id="crownGlow" cx="50%" cy="40%" r="60%">
-          <stop offset="0%" stopColor="#C9A84C" stopOpacity="0.12" />
-          <stop offset="50%" stopColor="#6B8F4E" stopOpacity="0.06" />
+          <stop offset="0%" stopColor="#e8d878" stopOpacity="0.14" />
+          <stop offset="30%" stopColor="#C9A84C" stopOpacity="0.08" />
+          <stop offset="60%" stopColor="#6B8F4E" stopOpacity="0.04" />
           <stop offset="100%" stopColor="transparent" />
         </radialGradient>
+        {/* Volumetric sun ray gradient */}
+        <linearGradient id="sunRayG" x1="0.3" y1="0" x2="0.7" y2="1">
+          <stop offset="0%" stopColor="#fff8dc" stopOpacity="0.06" />
+          <stop offset="100%" stopColor="transparent" />
+        </linearGradient>
         <filter id="softG" x="-10%" y="-10%" width="120%" height="120%">
           <feGaussianBlur stdDeviation="1.5" result="b" />
           <feComposite in="SourceGraphic" in2="b" operator="over" />
@@ -164,6 +184,16 @@ function TreeSVG({ progress }: { progress: number }) {
         <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
           <feGaussianBlur stdDeviation="4" result="g" />
           <feMerge><feMergeNode in="g" /><feMergeNode in="SourceGraphic" /></feMerge>
+        </filter>
+        {/* Inner shadow for depth */}
+        <filter id="innerDepth" x="-5%" y="-5%" width="110%" height="110%">
+          <feGaussianBlur stdDeviation="2" result="blur" />
+          <feComposite in="SourceGraphic" in2="blur" operator="over" />
+        </filter>
+        {/* Bark texture noise pattern */}
+        <filter id="barkNoise" x="0%" y="0%" width="100%" height="100%">
+          <feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="5" result="noise" />
+          <feDisplacementMap in="SourceGraphic" in2="noise" scale="2" />
         </filter>
       </defs>
 
@@ -183,12 +213,32 @@ function TreeSVG({ progress }: { progress: number }) {
       <path ref={setRef("trunk")} d="M 400 3000 C 397 2880 392 2760 395 2640 C 398 2520 404 2400 400 2280 C 396 2160 388 2040 392 1920 C 396 1800 406 1680 402 1560 C 398 1440 386 1320 390 1200 C 394 1080 406 960 400 850" stroke="url(#trunkG)" strokeWidth="32" strokeLinecap="round" fill="none" filter="url(#softG)" />
       {/* trunk right edge highlight */}
       <path ref={setRef("trunkR")} d="M 414 2950 C 412 2830 408 2710 410 2590 C 412 2470 418 2350 414 2230 C 410 2110 404 1990 407 1870 C 410 1750 418 1630 414 1510 C 410 1390 402 1270 405 1150 C 408 1030 416 920 412 860" stroke="#3a5738" strokeWidth="6" strokeLinecap="round" fill="none" opacity="0.25" />
-      {/* bark lines */}
-      <g opacity={op(0.10, 5) * 0.2}>
-        <path d="M 392 2700 Q 388 2600 394 2500 Q 400 2400 394 2300" stroke="#2a4428" strokeWidth="2" fill="none" strokeLinecap="round" />
-        <path d="M 406 2200 Q 402 2100 408 2000 Q 414 1900 406 1800" stroke="#2a4428" strokeWidth="2" fill="none" strokeLinecap="round" />
-        <path d="M 396 1600 Q 392 1500 398 1400 Q 404 1300 396 1200" stroke="#2a4428" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+      {/* bark lines — deeper texture */}
+      <g opacity={op(0.10, 5) * 0.25}>
+        <path d="M 392 2700 Q 388 2600 394 2500 Q 400 2400 394 2300" stroke="#2a4428" strokeWidth="2.5" fill="none" strokeLinecap="round" />
+        <path d="M 406 2200 Q 402 2100 408 2000 Q 414 1900 406 1800" stroke="#2a4428" strokeWidth="2.2" fill="none" strokeLinecap="round" />
+        <path d="M 396 1600 Q 392 1500 398 1400 Q 404 1300 396 1200" stroke="#2a4428" strokeWidth="1.8" fill="none" strokeLinecap="round" />
         <path d="M 404 1100 Q 400 1000 406 920" stroke="#2a4428" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+        {/* Additional fine bark cracks */}
+        <path d="M 398 2850 Q 396 2780 400 2720" stroke="#1e3820" strokeWidth="1" fill="none" strokeLinecap="round" opacity="0.5" />
+        <path d="M 402 2050 Q 406 1980 400 1920" stroke="#1e3820" strokeWidth="1" fill="none" strokeLinecap="round" opacity="0.5" />
+        <path d="M 394 1450 Q 398 1380 392 1320" stroke="#1e3820" strokeWidth="0.8" fill="none" strokeLinecap="round" opacity="0.4" />
+      </g>
+      {/* trunk left edge — subtle ambient occlusion */}
+      <path d="M 386 2950 C 384 2830 380 2710 382 2590 C 384 2470 390 2350 386 2230 C 382 2110 376 1990 379 1870 C 382 1750 390 1630 386 1510 C 382 1390 374 1270 377 1150 C 380 1030 388 920 384 860" stroke="#2a4428" strokeWidth="5" strokeLinecap="round" fill="none" opacity="0.12" />
+      {/* Moss patches on trunk */}
+      <g opacity={op(0.12, 4) * 0.35}>
+        <ellipse cx="388" cy="2500" rx="18" ry="8" fill="#6aaa4e" fillOpacity="0.25" transform="rotate(-8,388,2500)" />
+        <ellipse cx="412" cy="2000" rx="14" ry="6" fill="#7aaa5e" fillOpacity="0.2" transform="rotate(5,412,2000)" />
+        <ellipse cx="394" cy="1500" rx="16" ry="7" fill="#5a9a3e" fillOpacity="0.22" transform="rotate(-12,394,1500)" />
+        <ellipse cx="406" cy="1100" rx="12" ry="5" fill="#6aaa4e" fillOpacity="0.18" transform="rotate(8,406,1100)" />
+      </g>
+      {/* Knot holes */}
+      <g opacity={op(0.15, 4) * 0.3}>
+        <ellipse cx="402" cy="2400" rx="6" ry="8" fill="#1e3820" fillOpacity="0.4" />
+        <ellipse cx="402" cy="2400" rx="4" ry="5" fill="#2a4428" fillOpacity="0.3" />
+        <ellipse cx="398" cy="1700" rx="5" ry="7" fill="#1e3820" fillOpacity="0.35" />
+        <ellipse cx="398" cy="1700" rx="3" ry="4" fill="#2a4428" fillOpacity="0.25" />
       </g>
 
       {/* ═══ LOWER BRANCHES ═══ */}
@@ -260,9 +310,17 @@ function TreeSVG({ progress }: { progress: number }) {
         ].map(([cx, cy, rx, ry], i) => (
           <ellipse key={`cr-${i}`} cx={cx} cy={cy} rx={rx} ry={ry} fill={["#4B6E48", "#6B8F4E", "#5a7a45", "#B2AC88"][i % 4]} fillOpacity={0.12 + (i < 6 ? 0.08 : 0)} transform={`rotate(${(i * 17) % 30 - 15},${cx},${cy})`} />
         ))}
-        {/* Golden crown glow */}
-        <circle cx="400" cy="350" r="180" fill="url(#crownGlow)" />
-        <circle cx="400" cy="300" r="100" fill="url(#leafGlowR)" />
+        {/* Golden crown glow — multi-layered */}
+        <circle cx="400" cy="350" r="200" fill="url(#crownGlow)" />
+        <circle cx="400" cy="300" r="120" fill="url(#leafGlowR)" />
+        <circle cx="400" cy="280" r="80" fill="url(#crownGlow)" opacity="0.5" />
+        {/* Volumetric sun rays through canopy */}
+        <g opacity="0.08">
+          <polygon points="380,200 360,600 370,600" fill="url(#sunRayG)" />
+          <polygon points="420,180 440,580 430,580" fill="url(#sunRayG)" />
+          <polygon points="340,240 310,550 325,550" fill="url(#sunRayG)" />
+          <polygon points="460,220 490,540 475,540" fill="url(#sunRayG)" />
+        </g>
       </g>
 
       {/* ═══ INDIVIDUAL LEAF SHAPES ═══ */}
@@ -288,7 +346,7 @@ function TreeSVG({ progress }: { progress: number }) {
 }
 
 /* ──────────────────────────────────────────
-   ParticleField — multi-layer parallax leaves + fireflies
+   ParticleField — immersive multi-depth forest atmosphere
    ────────────────────────────────────────── */
 function ParticleField() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -296,10 +354,34 @@ function ParticleField() {
     if (!containerRef.current) return;
     const c = containerRef.current;
     const els: HTMLElement[] = [];
-    const leafColors = ["#4B6E48", "#6B8F4E", "#B2AC88", "#D4D0BC", "#5a7a45"];
+    const leafColors = ["#4B6E48", "#6B8F4E", "#B2AC88", "#D4D0BC", "#5a7a45", "#3d5c3b", "#7aaa5e"];
+
+    // Layer 0: Ultra-deep background — large blurred shapes
+    for (let i = 0; i < 12; i++) {
+      const el = document.createElement("div");
+      el.className = "tree-leaf";
+      el.style.background = leafColors[i % leafColors.length];
+      el.style.left = `${Math.random() * 100}%`;
+      el.style.top = `${Math.random() * 100}%`;
+      const s = 14 + Math.random() * 18;
+      el.style.width = `${s}px`; el.style.height = `${s}px`;
+      el.style.opacity = "0.03";
+      el.style.filter = "blur(4px)";
+      c.appendChild(el); els.push(el);
+      animate(el, {
+        translateX: () => utils.random(-30, 30),
+        translateY: () => utils.random(-40, 20),
+        rotate: () => utils.random(-90, 90),
+        opacity: [{ to: 0.02 }, { to: 0.06 }, { to: 0.02 }],
+        scale: [{ to: 0.8 }, { to: 1.4 }, { to: 0.8 }],
+        duration: 12000 + Math.random() * 6000,
+        delay: i * 400,
+        loop: true, easing: "easeInOutSine", alternate: true,
+      });
+    }
 
     // Layer 1: Slow deep leaves
-    for (let i = 0; i < 35; i++) {
+    for (let i = 0; i < 30; i++) {
       const el = document.createElement("div");
       el.className = "tree-leaf";
       el.style.background = leafColors[i % leafColors.length];
@@ -308,12 +390,13 @@ function ParticleField() {
       const s = 6 + Math.random() * 8;
       el.style.width = `${s}px`; el.style.height = `${s}px`;
       el.style.opacity = "0.06";
+      el.style.filter = "blur(1px)";
       c.appendChild(el); els.push(el);
       animate(el, {
         translateX: () => utils.random(-50, 50),
         translateY: () => utils.random(-70, 30),
         rotate: () => utils.random(-180, 180),
-        opacity: [{ to: 0.04 }, { to: 0.14 }, { to: 0.04 }],
+        opacity: [{ to: 0.04 }, { to: 0.16 }, { to: 0.04 }],
         scale: [{ to: 0.7 }, { to: 1.3 }, { to: 0.7 }],
         duration: 8000 + Math.random() * 4000,
         delay: i * 250,
@@ -321,8 +404,8 @@ function ParticleField() {
       });
     }
 
-    // Layer 2: Mid speed leaves
-    for (let i = 0; i < 28; i++) {
+    // Layer 2: Mid speed leaves — sharper, more visible
+    for (let i = 0; i < 22; i++) {
       const el = document.createElement("div");
       el.className = "tree-leaf";
       el.style.background = leafColors[(i + 2) % leafColors.length];
@@ -336,7 +419,7 @@ function ParticleField() {
         translateX: () => utils.random(-90, 90),
         translateY: () => utils.random(-110, 50),
         rotate: () => utils.random(-240, 240),
-        opacity: [{ to: 0.06 }, { to: 0.22 }, { to: 0.06 }],
+        opacity: [{ to: 0.06 }, { to: 0.24 }, { to: 0.06 }],
         scale: [{ to: 0.8 }, { to: 1.15 }, { to: 0.85 }],
         duration: 5500 + Math.random() * 3500,
         delay: i * 180,
@@ -344,18 +427,34 @@ function ParticleField() {
       });
     }
 
-    // Fireflies
-    for (let i = 0; i < 30; i++) {
+    // Pollen / spore particles — tiny golden dots
+    for (let i = 0; i < 20; i++) {
       const el = document.createElement("div");
-      el.style.cssText = `position:absolute;width:3px;height:3px;border-radius:50%;background:#C9A84C;box-shadow:0 0 8px 3px rgba(201,168,76,0.35);pointer-events:none;opacity:0;left:${Math.random()*100}%;top:${Math.random()*85}%`;
+      el.style.cssText = `position:absolute;width:2px;height:2px;border-radius:50%;background:#e8d878;pointer-events:none;opacity:0;left:${20 + Math.random()*60}%;top:${Math.random()*70}%`;
+      c.appendChild(el); els.push(el);
+      animate(el, {
+        translateX: () => utils.random(-60, 60),
+        translateY: () => utils.random(-80, 40),
+        opacity: [{ to: 0 }, { to: 0.4 }, { to: 0.6 }, { to: 0 }],
+        scale: [{ to: 0.5 }, { to: 1.2 }, { to: 0.5 }],
+        duration: 6000 + Math.random() * 4000,
+        delay: i * 350 + 500,
+        loop: true, easing: "easeInOutSine", alternate: true,
+      });
+    }
+
+    // Fireflies — enhanced with wider glow
+    for (let i = 0; i < 25; i++) {
+      const el = document.createElement("div");
+      el.style.cssText = `position:absolute;width:3px;height:3px;border-radius:50%;background:#C9A84C;box-shadow:0 0 12px 5px rgba(201,168,76,0.4),0 0 24px 10px rgba(201,168,76,0.15);pointer-events:none;opacity:0;left:${Math.random()*100}%;top:${Math.random()*85}%`;
       c.appendChild(el); els.push(el);
       animate(el, {
         translateX: () => utils.random(-140, 140),
         translateY: () => utils.random(-120, 80),
-        opacity: [{ to: 0 }, { to: 0.65 }, { to: 0.85 }, { to: 0 }],
-        scale: [{ to: 0.4 }, { to: 1.6 }, { to: 0.4 }],
-        duration: 3500 + Math.random() * 3500,
-        delay: i * 400 + 800,
+        opacity: [{ to: 0 }, { to: 0.55 }, { to: 0.85 }, { to: 0 }],
+        scale: [{ to: 0.4 }, { to: 1.8 }, { to: 0.4 }],
+        duration: 3500 + Math.random() * 4000,
+        delay: i * 500 + 1000,
         loop: true, easing: "easeInOutQuad", alternate: true,
       });
     }
@@ -394,24 +493,20 @@ function FallingLeaves({ progress }: { progress: number }) {
 }
 
 /* ──────────────────────────────────────────
-   ScrollReveal
+   ScrollReveal — refactored with motion.dev
    ────────────────────────────────────────── */
 function ScrollReveal({ children, className = "", delay = 0 }: { children: React.ReactNode; className?: string; delay?: number }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const ran = useRef(false);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const obs = new IntersectionObserver(([e]) => {
-      if (e.isIntersecting && !ran.current) {
-        ran.current = true;
-        animate(el, { opacity: [0, 1], translateY: [35, 0], duration: 750, delay, easing: "easeOutCubic" });
-      }
-    }, { threshold: 0.12 });
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, [delay]);
-  return <div ref={ref} className={`scroll-reveal ${className}`} style={{ opacity: 0 }}>{children}</div>;
+  return (
+    <motion_framer.div
+      initial={{ opacity: 0, y: 35 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: "-40px" }}
+      transition={{ duration: 0.8, delay: delay / 1000, ease: [0.21, 0.47, 0.32, 0.98] }}
+      className={`scroll-reveal ${className}`}
+    >
+      {children}
+    </motion_framer.div>
+  );
 }
 
 /* ──────────────────────────────────────────
@@ -485,12 +580,25 @@ export default function Home() {
       <FloatingHeader />
       <DockHeader walletAddress={walletAddress} walletProvider={walletProvider} onConnect={handleConnect} onDisconnect={handleDisconnect} isConnecting={false} />
 
-      {/* ambient blobs */}
+      {/* ambient magical background */}
       <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
-        <div className="absolute top-[-15%] left-[-8%] h-[500px] w-[500px] rounded-full bg-[var(--sage)]/10 blur-[100px] animate-gentle-sway" />
-        <div className="absolute bottom-[-10%] right-[-5%] h-[400px] w-[400px] rounded-full bg-[var(--forest)]/8 blur-[120px] animate-gentle-sway" style={{ animationDelay: "4s" }} />
-        <div className="absolute top-[30%] right-[10%] h-[300px] w-[300px] rounded-full bg-[var(--amber-sap)]/5 blur-[100px] animate-gentle-sway" style={{ animationDelay: "2s" }} />
-        <div className="absolute top-[60%] left-[5%] h-[350px] w-[350px] rounded-full bg-[var(--forest)]/5 blur-[130px] animate-gentle-sway" style={{ animationDelay: "6s" }} />
+        {/* Deep vignette for depth */}
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_25%,rgba(44,44,43,0.08)_100%)] z-10" />
+        
+        {/* Warm sun spot — top right */}
+        <div className="absolute top-[-10%] right-[10%] h-[500px] w-[500px] rounded-full bg-[radial-gradient(circle,rgba(255,248,220,0.12)_0%,transparent_60%)] blur-[60px]" style={{ animation: "gentle-sway 20s ease-in-out infinite" }} />
+        
+        {/* Enhanced botanical light bleeds */}
+        <div className="absolute top-[-20%] left-[-10%] h-[800px] w-[800px] rounded-full bg-[radial-gradient(circle,var(--sage)_0%,transparent_70%)] opacity-[0.12] blur-[100px] animate-gentle-sway" />
+        <div className="absolute bottom-[-20%] right-[-10%] h-[700px] w-[700px] rounded-full bg-[radial-gradient(circle,var(--forest)_0%,transparent_70%)] opacity-[0.10] blur-[120px] animate-gentle-sway" style={{ animationDelay: "-4s", animationDuration: "12s" }} />
+        <div className="absolute top-[30%] right-[-15%] h-[600px] w-[600px] rounded-full bg-[radial-gradient(circle,var(--amber-sap)_0%,transparent_70%)] opacity-[0.07] blur-[100px] animate-gentle-sway" style={{ animationDelay: "-2s", animationDuration: "14s" }} />
+        <div className="absolute top-[50%] left-[-10%] h-[600px] w-[600px] rounded-full bg-[radial-gradient(circle,var(--terra)_0%,transparent_70%)] opacity-[0.05] blur-[120px] animate-gentle-sway" style={{ animationDelay: "-6s", animationDuration: "16s" }} />
+        {/* Extra botanical orbs for richness */}
+        <div className="absolute top-[70%] right-[20%] h-[400px] w-[400px] rounded-full bg-[radial-gradient(circle,var(--moss)_0%,transparent_70%)] opacity-[0.06] blur-[80px] animate-gentle-sway" style={{ animationDelay: "-8s", animationDuration: "18s" }} />
+        <div className="absolute top-[15%] left-[40%] h-[300px] w-[300px] rounded-full bg-[radial-gradient(circle,rgba(201,168,76,0.15)_0%,transparent_70%)] opacity-[0.08] blur-[60px] animate-gentle-sway" style={{ animationDelay: "-3s", animationDuration: "10s" }} />
+        
+        {/* Subtle magical mist/texture overlay */}
+        <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg viewBox=%220 0 200 200%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cfilter id=%22noiseFilter%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.8%22 numOctaves=%223%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23noiseFilter)%22/%3E%3C/svg%3E')] opacity-[0.035] mix-blend-overlay z-20" />
       </div>
 
       <main className="relative z-10 flex flex-1 flex-col items-center">
@@ -500,6 +608,14 @@ export default function Home() {
           <div className="tree-svg-wrapper w-full max-w-[400px] sm:max-w-[500px] md:max-w-[600px] lg:max-w-[700px]">
             <TreeSVG progress={scrollProgress} />
           </div>
+
+          {/* Light sweep shimmer effect */}
+          <div className="light-sweep-overlay" />
+
+          {/* Ambient light rays — sun through canopy */}
+          <div className="ambient-light-ray" style={{ left: '30%', animationDelay: '0s' }} />
+          <div className="ambient-light-ray" style={{ left: '55%', animationDelay: '-4s', animationDuration: '14s', opacity: 0.04 }} />
+          <div className="ambient-light-ray" style={{ left: '75%', animationDelay: '-8s', animationDuration: '16s', width: '80px', opacity: 0.03 }} />
 
           {/* Falling leaves triggered by scroll */}
           <FallingLeaves progress={scrollProgress} />
@@ -579,13 +695,15 @@ export default function Home() {
               </ScrollReveal>
 
               <div className="branch-cards-left">
-                <BranchCard side="left" delay={100} icon={<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>} title="Lookup" description="Search any wallet's reputation by ID or Stellar address. View scores, endorsements, and reports." />
-                <BranchCard side="left" delay={200} icon={<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7 10v12" /><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z" /></svg>} title="Endorse" description="Build trust by endorsing reliable wallets. Each endorsement adds +1 to the reputation score." />
+                <BranchCard side="left" delay={100} icon={<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>} title="Identity & Profile" description="Create a decentralized profile. Upload an avatar via IPFS and establish a verifiable on-chain identity." />
+                <BranchCard side="left" delay={200} icon={<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7 10v12" /><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z" /></svg>} title="Peer Endorsements" description="Build trust by endorsing reliable wallets across specific categories like Trading, NFTs, or Development." />
+                <BranchCard side="left" delay={300} icon={<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" /><line x1="4" y1="22" x2="4" y2="15" /></svg>} title="Community Moderation" description="Flag malicious actors to protect the ecosystem. Reports natively decrement trust scores and alert peers." />
               </div>
               <div className="trunk-spacer" />
               <div className="branch-cards-right">
-                <BranchCard side="right" delay={150} icon={<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><line x1="19" y1="8" x2="19" y2="14" /><line x1="22" y1="11" x2="16" y2="11" /></svg>} title="Register" description="Create your on-chain identity. Your wallet address maps to a unique ID that others can reference." />
-                <BranchCard side="right" delay={250} icon={<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" /><line x1="4" y1="22" x2="4" y2="15" /></svg>} title="Report" description="Flag suspicious wallets to protect the community. Each report deducts -3 from the score." />
+                <BranchCard side="right" delay={150} icon={<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><line x1="19" y1="8" x2="19" y2="14" /><line x1="22" y1="11" x2="16" y2="11" /></svg>} title="Verifiable Credentials" description="Institutions can mint immutable Certificates directly to a wallet, beautifully rendered via on-chain data." />
+                <BranchCard side="right" delay={250} icon={<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2" /><polyline points="2 17 12 22 22 17" /><polyline points="2 12 12 17 22 12" /></svg>} title="Decentralized Arbitration" description="A robust Dispute Resolution protocol where the community votes to reverse inaccurate interaction logs." />
+                <BranchCard side="right" delay={350} icon={<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2" /></svg>} title="Network Telemetry" description="Access a global analytics dashboard tracking live trust metrics across the entire Soroban graph." />
               </div>
             </div>
           </section>

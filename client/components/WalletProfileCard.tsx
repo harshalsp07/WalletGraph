@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef } from "react";
 import Image from "next/image";
+import { useSearchParams } from "next/navigation";
 import QRCode from "qrcode";
 import Link from "next/link";
 import { animate } from "animejs";
@@ -16,8 +17,13 @@ import {
   checkConnection,
   getWalletAddress,
   getActiveWalletProvider,
+  viewWalletProfile,
+  getProfileImage,
+  viewWalletTier,
   type WalletProvider,
 } from "@/hooks/contract";
+import TrustBadge, { TierStatus } from "./TrustBadge";
+import EditProfileModal from "./EditProfileModal";
 
 interface ReputationRecord {
   wallet_id: number;
@@ -34,6 +40,7 @@ interface InteractionLog {
   target_wallet_id: number;
   is_endorsement: boolean;
   reason: string;
+  category: number;
   timestamp: number;
 }
 
@@ -260,6 +267,8 @@ function CommentItem({ log, index }: { log: InteractionLog; index: number }) {
             <span>{formatDate(log.timestamp)}</span>
             <span className="h-1 w-1 rounded-full bg-[var(--faded-sage)]" />
             <span>Ledger #{log.timestamp}</span>
+            <span className="h-1 w-1 rounded-full bg-[var(--faded-sage)]" />
+            <span>{["General", "Trading", "Lending", "NFTs", "Developer", "Social"][log.category] || "General"}</span>
           </p>
         </div>
       </div>
@@ -435,6 +444,7 @@ function SharePanel({ walletId, score, endorsements }: { walletId: number; score
 
 export default function WalletProfileCard({ walletIdOrAddress }: Props) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { showToast } = useToast();
   const cardRef = useRef<HTMLDivElement>(null);
   
@@ -446,7 +456,17 @@ export default function WalletProfileCard({ walletIdOrAddress }: Props) {
   const [isConnected, setIsConnected] = useState(false);
   const [, setWalletProvider] = useState<WalletProvider | null>(null);
   
+  // Profile expanded state
+  const [displayName, setDisplayName] = useState("");
+  const [bio, setBio] = useState("");
+  const [avatarCid, setAvatarCid] = useState("");
+  const [tier, setTier] = useState<TierStatus>(0);
+  const [isEditing, setIsEditing] = useState(false);
+  
+  const shouldEdit = searchParams.get("edit") === "true";
+  
   const [actionTab, setActionTab] = useState<"endorse" | "report" | null>(null);
+  const [actionCategory, setActionCategory] = useState<number>(0);
   const [actionReason, setActionReason] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -525,12 +545,26 @@ export default function WalletProfileCard({ walletIdOrAddress }: Props) {
                 target_wallet_id: Number(obj.target_wallet_id ?? 0),
                 is_endorsement: Boolean(obj.is_endorsement ?? false),
                 reason: String(obj.reason ?? ""),
+                category: Number(obj.category ?? 0),
                 timestamp: Number(obj.timestamp ?? 0),
               };
             });
             setWalletHistory(logs.reverse());
           }
         } catch { /* ignore */ }
+
+        // Fetch Profile Features
+        try {
+          const profile = await viewWalletProfile(resolvedId) as { display_name: string; bio: string } | null;
+          if (profile) {
+             setDisplayName(profile.display_name);
+             setBio(profile.bio);
+          }
+          const imageCid = await getProfileImage(resolvedId);
+          if (imageCid) setAvatarCid(String(imageCid));
+          const tr = await viewWalletTier(resolvedId);
+          if (tr !== undefined && tr !== null) setTier(Number(tr) as TierStatus);
+        } catch (e) { console.error(e) }
         
       } catch {
         setNotFound(true);
@@ -551,6 +585,12 @@ export default function WalletProfileCard({ walletIdOrAddress }: Props) {
     }
   }, [loading, notFound]);
 
+  useEffect(() => {
+    if (shouldEdit && isConnected && walletAddress && isConnected && walletAddress === reputation?.wallet_address) {
+      setIsEditing(true);
+    }
+  }, [shouldEdit, isConnected, walletAddress, reputation?.wallet_address]);
+
   const handleAction = useCallback(async (e: React.MouseEvent<HTMLButtonElement>) => {
     if (!isConnected || !walletAddress || !reputation) {
       router.push("/login");
@@ -569,10 +609,10 @@ export default function WalletProfileCard({ walletIdOrAddress }: Props) {
       showToast("Awaiting signature…", "info");
       
       if (actionTab === "endorse") {
-        await endorseWallet(walletAddress, reputation.wallet_id, actionReason.trim());
+        await endorseWallet(walletAddress, reputation.wallet_id, actionReason.trim(), actionCategory);
         showToast("Endorsement recorded on-chain! (+1 score)", "success");
       } else if (actionTab === "report") {
-        await reportWallet(walletAddress, reputation.wallet_id, actionReason.trim());
+        await reportWallet(walletAddress, reputation.wallet_id, actionReason.trim(), actionCategory);
         showToast("Report submitted on-chain! (−3 score)", "success");
       }
 
@@ -596,6 +636,7 @@ export default function WalletProfileCard({ walletIdOrAddress }: Props) {
             target_wallet_id: Number(obj.target_wallet_id ?? 0),
             is_endorsement: Boolean(obj.is_endorsement ?? false),
             reason: String(obj.reason ?? ""),
+            category: Number(obj.category ?? 0),
             timestamp: Number(obj.timestamp ?? 0),
           };
         });
@@ -604,6 +645,7 @@ export default function WalletProfileCard({ walletIdOrAddress }: Props) {
 
       setActionTab(null);
       setActionReason("");
+      setActionCategory(0);
     } catch (err: unknown) {
       showToast(err instanceof Error ? err.message : "Action failed", "error");
     } finally {
@@ -655,31 +697,73 @@ export default function WalletProfileCard({ walletIdOrAddress }: Props) {
         <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[var(--forest)] via-[var(--sage)] to-[var(--amber-sap)]" />
         
         <div className="p-6">
-          <div className="flex items-start gap-4 mb-6">
-            <div 
-              className="h-16 w-16 rounded-2xl flex items-center justify-center text-2xl font-heading font-bold text-white shadow-lg"
-              style={{ 
-                background: `linear-gradient(135deg, ${reputation!.score > 0 ? 'var(--forest)' : reputation!.score < 0 ? 'var(--terra)' : 'var(--amber-sap)'}, ${reputation!.score > 0 ? 'var(--moss)' : reputation!.score < 0 ? '#8B4513' : '#D4A84C'})`,
-                boxShadow: `0 8px 24px ${reputation!.score > 0 ? 'rgba(75,110,72,0.35)' : reputation!.score < 0 ? 'rgba(160,82,45,0.35)' : 'rgba(201,168,76,0.35)'}`,
-              }}
-            >
-              {reputation!.wallet_address?.slice(0, 2) || "W"}
-            </div>
-            <div className="flex-1">
-              <div className="flex items-center gap-2 mb-1">
-                <h2 className="text-xl font-heading font-bold text-[var(--dark-ink)]">
-                  Wallet #{reputation!.wallet_id}
-                </h2>
-                <span className={`badge ${reputation!.is_active ? "badge-forest" : "badge-terra"}`}>
-                  <span className={`h-1.5 w-1.5 rounded-full ${reputation!.is_active ? "bg-[var(--forest)]" : "bg-[var(--terra)]"}`} />
-                  {reputation!.is_active ? "Active" : "Inactive"}
-                </span>
+          <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 mb-6 text-center sm:text-left">
+            <div className="relative group flex-shrink-0">
+              <div 
+                className="h-24 w-24 sm:h-28 sm:w-28 rounded-full flex items-center justify-center text-4xl font-heading font-bold text-white shadow-lg overflow-hidden transition-transform duration-500 group-hover:scale-105"
+                style={{ 
+                  background: `linear-gradient(135deg, ${reputation!.score > 0 ? 'var(--forest)' : reputation!.score < 0 ? 'var(--terra)' : 'var(--amber-sap)'}, ${reputation!.score > 0 ? 'var(--moss)' : reputation!.score < 0 ? '#8B4513' : '#D4A84C'})`,
+                  boxShadow: `0 12px 28px ${reputation!.score > 0 ? 'rgba(75,110,72,0.45)' : reputation!.score < 0 ? 'rgba(160,82,45,0.45)' : 'rgba(201,168,76,0.35)'}`,
+                  border: '4px solid white'
+                }}
+              >
+                {avatarCid ? (
+                  <Image 
+                    src={`https://gateway.pinata.cloud/ipfs/${avatarCid}`} 
+                    alt="Profile Avatar" 
+                    width={112} height={112} 
+                    className="w-full h-full object-cover"
+                    unoptimized
+                  />
+                ) : (
+                  reputation!.wallet_address?.slice(0, 2) || "W"
+                )}
               </div>
+              
+              {isConnected && walletAddress === reputation!.wallet_address && (
+                <button 
+                  onClick={() => setIsEditing(true)}
+                  className="absolute inset-0 bg-black/40 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center cursor-pointer backdrop-blur-sm shadow-inner"
+                >
+                  <span className="text-white text-xs font-bold tracking-wider uppercase font-sans">Edit Avatar</span>
+                </button>
+              )}
+            </div>
+
+            <div className="flex-1 flex flex-col justify-center sm:justify-start">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mb-2">
+                <h2 className="text-3xl font-heading font-bold text-[var(--dark-ink)] tracking-tight">
+                  {displayName || `Wallet #${reputation!.wallet_id}`}
+                </h2>
+                <div className="flex items-center justify-center sm:justify-start gap-2">
+                  <span className={`px-2 py-0.5 rounded-md text-[10px] uppercase font-bold tracking-widest text-white shadow-sm ${reputation!.is_active ? "bg-[var(--forest)]" : "bg-[var(--terra)]"}`}>
+                    {reputation!.is_active ? "Active" : "Inactive"}
+                  </span>
+                  <TrustBadge tier={tier} size="sm" />
+                  {isConnected && walletAddress === reputation!.wallet_address && (
+                    <button 
+                      onClick={() => setIsEditing(true)}
+                      className="px-2 py-0.5 rounded-md text-[10px] uppercase font-bold tracking-widest bg-[var(--stone)] text-white shadow-sm hover:bg-[var(--dark-ink)] transition-colors cursor-pointer"
+                    >
+                      Edit
+                    </button>
+                  )}
+                </div>
+              </div>
+              
+              {bio && (
+                <p className="text-sm text-[var(--stone)] mb-3 leading-relaxed italic">
+                  "{bio}"
+                </p>
+              )}
+              
+              <div className="mt-1">
               {reputation!.wallet_address && (
                 <p className="font-mono-data text-xs text-[var(--stone)] bg-[var(--parchment)] px-2 py-1 rounded inline-block">
                   {truncate(reputation!.wallet_address)}
                 </p>
               )}
+              </div>
             </div>
           </div>
 
@@ -769,20 +853,40 @@ export default function WalletProfileCard({ walletIdOrAddress }: Props) {
           </div>
         ) : (
           <div className="p-4 space-y-4">
-            <div className="space-y-2">
-              <label className="block text-xs font-semibold uppercase tracking-wider text-[var(--stone)]">
-                Reason / Comment ({actionTab === "endorse" ? "+1 score" : "−3 score"})
-              </label>
-              <textarea
-                className="textarea-botanical"
-                value={actionReason}
-                onChange={(e) => setActionReason(e.target.value)}
-                placeholder={actionTab === "endorse" 
-                  ? "e.g. Delivered on a P2P trade promptly..." 
-                  : "e.g. Failed to send funds after trade agreed..."
-                }
-                rows={3}
-              />
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-[var(--stone)]">
+                    Category
+                  </label>
+                  <select
+                    className="w-full bg-white border border-[var(--faded-sage)] rounded-xl px-4 py-2.5 outline-none focus:border-[var(--forest)] focus:ring-1 focus:ring-[var(--forest)] transition-all font-sans text-sm text-[var(--dark-ink)] appearance-none"
+                    value={actionCategory}
+                    onChange={(e) => setActionCategory(Number(e.target.value))}
+                  >
+                    <option value={0}>General</option>
+                    <option value={1}>Trading</option>
+                    <option value={2}>Lending</option>
+                    <option value={3}>NFTs</option>
+                    <option value={4}>Developer</option>
+                    <option value={5}>Social</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-[var(--stone)]">
+                    Reason / Comment ({actionTab === "endorse" ? "+1 score" : "−3 score"})
+                  </label>
+                  <input
+                    className="w-full bg-white border border-[var(--faded-sage)] rounded-xl px-4 py-2.5 outline-none focus:border-[var(--forest)] focus:ring-1 focus:ring-[var(--forest)] transition-all font-sans text-sm text-[var(--dark-ink)]"
+                    value={actionReason}
+                    onChange={(e) => setActionReason(e.target.value)}
+                    placeholder={actionTab === "endorse" 
+                      ? "e.g. Delivered on a P2P trade promptly..." 
+                      : "e.g. Failed to send funds after trade agreed..."
+                    }
+                  />
+                </div>
+              </div>
             </div>
             <div className="flex gap-2">
               <button
@@ -802,6 +906,16 @@ export default function WalletProfileCard({ walletIdOrAddress }: Props) {
           </div>
         )}
       </div>
+
+      {isEditing && (
+        <EditProfileModal 
+          onClose={() => setIsEditing(false)}
+          onSuccess={() => {
+            setIsEditing(false);
+            window.location.reload();
+          }}
+        />
+      )}
     </div>
   );
 }

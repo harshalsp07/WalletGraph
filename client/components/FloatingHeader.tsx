@@ -2,17 +2,43 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { NETWORK } from "@/hooks/contract";
+import { useRouter } from "next/navigation";
+import { NETWORK, checkConnection, getWalletAddress } from "@/hooks/contract";
 import { BrandMarkIcon } from "@/components/BrandMark";
+import { User, Settings } from "lucide-react";
 
 export default function FloatingHeader() {
+  const router = useRouter();
   const [scrolled, setScrolled] = useState(false);
+  const [isConnected, setIsConnected] = useState(false);
+  const [walletAddress, setWalletAddress] = useState<string | null>(null);
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const connected = await checkConnection();
+        setIsConnected(connected);
+        if (connected) {
+          const addr = await getWalletAddress();
+          setWalletAddress(addr);
+        }
+      } catch { /* ignore */ }
+    })();
+  }, []);
+
+  const handleEditProfile = () => {
+    if (walletAddress) {
+      router.push("/edit-profile");
+    } else {
+      router.push("/login");
+    }
+  };
 
   return (
     <header
@@ -21,7 +47,7 @@ export default function FloatingHeader() {
       <div 
         className={`flex items-center gap-3 transition-all duration-500 pointer-events-auto ${
           scrolled 
-            ? "bg-[var(--warm-cream)]/90 backdrop-blur-md px-4 py-2 rounded-2xl shadow-[0_4px_20px_rgba(44,44,43,0.08)] border border-[var(--faded-sage)]/50 -ml-2" 
+            ? "bg-[var(--warm-cream)]/90 backdrop-blur-md px-4 py-2 rounded-2xl shadow-[0_4px_20px_rgba(44,44,43,0.08)] border border-[var(--faded-sage)]/50" 
             : ""
         }`}
       >
@@ -51,6 +77,30 @@ export default function FloatingHeader() {
             </div>
           </div>
         </Link>
+      </div>
+
+      <div className="hidden md:flex items-center gap-6 pointer-events-auto bg-[var(--parchment)]/80 backdrop-blur-md px-6 py-2 rounded-full border border-[var(--faded-sage)] shadow-sm font-sans text-sm font-medium">
+        <Link href="/dashboard" className="text-[var(--stone)] hover:text-[var(--forest)] transition-colors">
+          Dashboard
+        </Link>
+        <Link href="/certificates" className="text-[var(--stone)] hover:text-[var(--forest)] transition-colors">
+          Certificates Hub
+        </Link>
+        <Link href="/disputes" className="text-[var(--stone)] hover:text-[var(--forest)] transition-colors">
+          Disputes
+        </Link>
+        <Link href="/analytics" className="text-[var(--stone)] hover:text-[var(--forest)] transition-colors">
+          Analytics
+        </Link>
+        {isConnected && (
+          <button 
+            onClick={handleEditProfile}
+            className="flex items-center gap-1.5 text-[var(--stone)] hover:text-[var(--forest)] transition-colors"
+          >
+            <Settings className="w-4 h-4" />
+            Edit Profile
+          </button>
+        )}
       </div>
 
       <div className="pointer-events-auto">

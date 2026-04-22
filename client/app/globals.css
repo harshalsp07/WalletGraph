@@ -1354,13 +1354,59 @@ html {
   height: 100%;
   pointer-events: none;
   z-index: 0;
-  opacity: 0.65;
-  filter: drop-shadow(0 0 40px rgba(75, 110, 72, 0.08));
+  opacity: 0.78;
+  filter:
+    drop-shadow(0 0 60px rgba(75, 110, 72, 0.12))
+    drop-shadow(0 0 120px rgba(107, 143, 78, 0.06));
 }
 
 .tree-svg {
   width: 100%;
   height: 100%;
+}
+
+/* Realistic dappled light overlay on tree */
+.tree-svg-wrapper::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 200px 150px at 35% 20%, rgba(201,168,76,0.07) 0%, transparent 80%),
+    radial-gradient(ellipse 180px 120px at 65% 15%, rgba(255,255,220,0.05) 0%, transparent 70%),
+    radial-gradient(ellipse 120px 200px at 50% 50%, rgba(75,110,72,0.04) 0%, transparent 80%);
+  pointer-events: none;
+  animation: dappled-light 12s ease-in-out infinite alternate;
+  z-index: 1;
+}
+
+@keyframes dappled-light {
+  0% { opacity: 0.6; transform: translate(0, 0) scale(1); }
+  50% { opacity: 1; transform: translate(8px, -5px) scale(1.03); }
+  100% { opacity: 0.7; transform: translate(-5px, 3px) scale(0.98); }
+}
+
+/* Subtle breathing animation for entire tree */
+@keyframes tree-breathe {
+  0%, 100% { transform: translateX(-50%) scaleY(1); }
+  50% { transform: translateX(-50%) scaleY(1.003); }
+}
+
+.tree-svg-wrapper {
+  animation: tree-breathe 8s ease-in-out infinite;
+  transform-origin: center bottom;
+}
+
+/* Ground mist effect beneath tree */
+.tree-container::after {
+  content: '';
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 200px;
+  background: linear-gradient(to top, rgba(242,240,239,0.9) 0%, rgba(242,240,239,0.4) 40%, transparent 100%);
+  pointer-events: none;
+  z-index: 2;
 }
 
 /* ── Generic section layer ── */
@@ -1767,13 +1813,14 @@ html {
   transition: width 0.1s linear;
 }
 
-/* ── Leaf particle ── */
+/* ── Leaf particle — enhanced ── */
 
 .tree-leaf {
   position: absolute;
   border-radius: 0 50% 50% 50%;
   opacity: 0.12;
   pointer-events: none;
+  box-shadow: 0 0 6px 2px rgba(75, 110, 72, 0.08);
 }
 
 /* ── Branch sway animation ── */
@@ -1797,14 +1844,16 @@ html {
   animation: canopy-shimmer 5s ease-in-out infinite;
 }
 
-/* ── Falling leaf animation ── */
+/* ── Falling leaf animation — 3D realistic ── */
 
 @keyframes leaf-fall {
-  0% { transform: translateY(0) rotate(0deg) translateX(0); opacity: 0.6; }
-  25% { transform: translateY(25vh) rotate(90deg) translateX(30px); opacity: 0.5; }
-  50% { transform: translateY(50vh) rotate(180deg) translateX(-20px); opacity: 0.4; }
-  75% { transform: translateY(75vh) rotate(270deg) translateX(15px); opacity: 0.2; }
-  100% { transform: translateY(100vh) rotate(360deg) translateX(-10px); opacity: 0; }
+  0% { transform: translateY(0) rotate(0deg) translateX(0) rotateX(0deg) rotateZ(0deg); opacity: 0.6; }
+  15% { transform: translateY(15vh) rotate(45deg) translateX(25px) rotateX(30deg) rotateZ(20deg); opacity: 0.55; }
+  30% { transform: translateY(30vh) rotate(90deg) translateX(-15px) rotateX(-20deg) rotateZ(-15deg); opacity: 0.45; }
+  50% { transform: translateY(50vh) rotate(180deg) translateX(20px) rotateX(40deg) rotateZ(30deg); opacity: 0.35; }
+  70% { transform: translateY(70vh) rotate(250deg) translateX(-25px) rotateX(-30deg) rotateZ(-20deg); opacity: 0.2; }
+  85% { transform: translateY(85vh) rotate(310deg) translateX(10px) rotateX(15deg) rotateZ(10deg); opacity: 0.1; }
+  100% { transform: translateY(100vh) rotate(360deg) translateX(-5px) rotateX(0deg) rotateZ(0deg); opacity: 0; }
 }
 
 .falling-leaf {
@@ -1814,13 +1863,14 @@ html {
   border-radius: 0 50% 50% 50%;
   pointer-events: none;
   animation: leaf-fall linear forwards;
+  box-shadow: 0 0 4px 1px rgba(75, 110, 72, 0.06);
 }
 
 /* ── Firefly pulse glow ── */
 
 @keyframes firefly-glow {
   0%, 100% { box-shadow: 0 0 4px 1px rgba(201,168,76,0.2); }
-  50% { box-shadow: 0 0 10px 4px rgba(201,168,76,0.6); }
+  50% { box-shadow: 0 0 14px 6px rgba(201,168,76,0.6); }
 }
 
 /* ── Enhanced tree trunk bark shimmer ── */
@@ -1847,6 +1897,80 @@ html {
   transition: stroke-opacity 0.5s ease, filter 0.5s ease;
 }
 
+.tree-svg line {
+  transition: stroke-opacity 0.5s ease;
+}
+
+.tree-svg ellipse {
+  transition: opacity 0.6s ease, fill-opacity 0.6s ease;
+}
+
+/* ── Ambient light sweep — diagonal shimmer ── */
+
+@keyframes light-sweep {
+  0% { transform: translateX(-100%) translateY(-100%) rotate(30deg); }
+  100% { transform: translateX(200%) translateY(200%) rotate(30deg); }
+}
+
+.light-sweep-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.light-sweep-overlay::before {
+  content: '';
+  position: absolute;
+  width: 200px;
+  height: 400%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.02),
+    rgba(255, 248, 220, 0.04),
+    rgba(255, 255, 255, 0.02),
+    transparent
+  );
+  animation: light-sweep 15s ease-in-out infinite;
+  animation-delay: 3s;
+}
+
+/* ── Parallax depth layers ── */
+
+.depth-layer-far {
+  transform: translateZ(-2px) scale(3);
+  z-index: -2;
+}
+
+.depth-layer-mid {
+  transform: translateZ(-1px) scale(2);
+  z-index: -1;
+}
+
+/* ── Ambient light ray from top ── */
+
+@keyframes ambient-ray-drift {
+  0%, 100% { transform: rotate(-2deg) scaleY(1); opacity: 0.03; }
+  50% { transform: rotate(2deg) scaleY(1.1); opacity: 0.06; }
+}
+
+.ambient-light-ray {
+  position: absolute;
+  top: 0;
+  width: 120px;
+  height: 60%;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 248, 220, 0.08) 0%,
+    rgba(255, 248, 220, 0.02) 40%,
+    transparent 100%
+  );
+  pointer-events: none;
+  animation: ambient-ray-drift 12s ease-in-out infinite;
+  transform-origin: top center;
+}
+
 /* ── Ambient page particles for inner pages ── */
 
 @keyframes float-particle {
@@ -1861,3 +1985,4 @@ html {
   pointer-events: none;
   animation: float-particle 8s ease-in-out infinite;
 }
+

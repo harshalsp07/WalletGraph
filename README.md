@@ -162,10 +162,14 @@ Long-term, this contract is designed to serve as a primitive — a composable bu
 | Feature | Description |
 |---|---|
 | 🆔 **Wallet Registration** | Any participant can register a new wallet identity and receive a unique, auto-incremented `wallet_id` on-chain. |
+| 🖼️ **Decentralized Profiles** | Rich user profiles featuring customizable display names, bios, and IPFS-backed avatars. |
 | 👍 **Peer Endorsements** | Users can endorse any registered wallet with a short on-chain reason string, boosting its reputation score by +1. |
 | 🚩 **Negative Reports** | Users can submit weighted negative reports (−3 per report) against wallets that have behaved maliciously or dishonestly. |
+| 📜 **Certificate Authority** | Organisations can register as verified issuers to mint cryptographically secure, on-chain certificates directly to wallets with auto-generated downloadable PNGs. |
+| ⚖️ **Community Arbitration** | Decentralized dispute resolution allowing users to challenge interaction logs. The community acts as council to vote for resolution. |
 | 📊 **Live Reputation Scores** | Reputation scores are computed and stored on-chain at every interaction — no off-chain computation needed. |
-| 📜 **Immutable Interaction Log** | Every endorsement and report is stored as an `InteractionLog` entry with a timestamp, reason, and log ID — fully auditable. |
+| 🔍 **Network Telemetry** | High-level analytics dashboards giving real-time insight into the network health and global trust metrics. |
+| 📂 **Immutable Interaction Log** | Every endorsement and report is stored as an `InteractionLog` entry with a timestamp, reason, and log ID — fully auditable. |
 | 🌍 **Global Statistics** | A real-time `GlobalStats` struct tracks total wallets, total endorsements, and total reports across the entire platform. |
 | ⚖️ **Weighted Scoring** | Reports carry 3× the weight of endorsements, ensuring that community warnings are meaningful signal, not noise. |
 | ♻️ **Composable Design** | Clean, minimal function surface makes it easy to integrate as a reputation oracle into other Soroban contracts or dApps. |

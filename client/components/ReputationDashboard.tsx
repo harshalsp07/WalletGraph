@@ -12,6 +12,9 @@ import {
   viewWalletHistory,
   CONTRACT_ADDRESS,
 } from "@/hooks/contract";
+import { useRecentSearches, useRecentInteractions } from "@/hooks/useRecentSearches";
+import { MAX_REASON_LENGTH } from "@/lib/constants";
+import { CategorySelect, ReasonTemplates, CharacterCounter } from "./ui/CategoryBadge";
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -339,15 +342,21 @@ export default function ReputationDashboard({ walletAddress, onConnect, isConnec
   const [isRegistering, setIsRegistering] = useState(false);
   const [registeredId, setRegisteredId] = useState<number | null>(null);
 
-  // Endorse state
-  const [endorseInput, setEndorseInput] = useState("");
-  const [endorseReason, setEndorseReason] = useState("");
-  const [isEndorsing, setIsEndorsing] = useState(false);
+// Endorse state
+const [endorseInput, setEndorseInput] = useState("");
+const [endorseReason, setEndorseReason] = useState("");
+const [endorseCategory, setEndorseCategory] = useState<0|1|2|3|4|5>(0);
+const [isEndorsing, setIsEndorsing] = useState(false);
 
-  // Report state  
-  const [reportInput, setReportInput] = useState("");
-  const [reportReason, setReportReason] = useState("");
-  const [isReporting, setIsReporting] = useState(false);
+// Report state  
+const [reportInput, setReportInput] = useState("");
+const [reportReason, setReportReason] = useState("");
+const [reportCategory, setReportCategory] = useState<0|1|2|3|4|5>(0);
+const [isReporting, setIsReporting] = useState(false);
+
+// Recent searches hook
+const { recentLookups, addLookup } = useRecentSearches();
+const { addInteraction } = useRecentInteractions();
 
   // Stagger-in animation on mount
   useEffect(() => {
@@ -403,8 +412,9 @@ export default function ReputationDashboard({ walletAddress, onConnect, isConnec
           is_active: Boolean(resultObj.is_active),
         };
         setReputation(rec);
+        
+        addLookup(lookupInput, walletAddress || undefined);
 
-        // Fetch wallet history
         try {
           const historyResult = await viewWalletHistory(walletId, walletAddress || undefined);
           if (historyResult && Array.isArray(historyResult)) {
@@ -431,7 +441,7 @@ export default function ReputationDashboard({ walletAddress, onConnect, isConnec
     } finally {
       setIsLooking(false);
     }
-  }, [lookupInput, walletAddress, showToast]);
+  }, [lookupInput, walletAddress, showToast, addLookup]);
 
   const handleRegister = useCallback(async (e: React.MouseEvent<HTMLButtonElement>) => {
     if (!walletAddress) return showToast("Connect wallet first", "error");
@@ -474,28 +484,31 @@ export default function ReputationDashboard({ walletAddress, onConnect, isConnec
     setIsEndorsing(true);
 
     try {
-      // Resolve input (supports both address and ID)
       showToast("Resolving wallet…", "info");
       const id = await resolveWalletInput(endorseInput, walletAddress, showToast);
       if (id === null) { setIsEndorsing(false); return; }
 
-      // Verify target exists
       const rep = await viewWalletReputation(id, walletAddress) as unknown as Record<string, unknown>;
       if (!rep || !rep.is_active || Number(rep.wallet_id) === 0) {
         throw new Error(`Target wallet ID ${id} does not exist or is inactive.`);
       }
 
       showToast("Awaiting signature…", "info");
-      await endorseWallet(walletAddress, id, endorseReason.trim());
+      await endorseWallet(walletAddress, id, endorseReason.trim(), endorseCategory);
       showToast("Endorsement recorded on-chain! (+1 score)", "success");
+      
+      addLookup(endorseInput, walletAddress);
+      addInteraction(id, walletAddress, endorseInput.startsWith("G") ? `${endorseInput.slice(0,6)}…` : String(id), "endorse");
+      
       setEndorseInput("");
       setEndorseReason("");
+      setEndorseCategory(0);
     } catch (err: unknown) {
       showToast(err instanceof Error ? err.message : "Endorsement failed", "error");
     } finally {
       setIsEndorsing(false);
     }
-  }, [walletAddress, endorseInput, endorseReason, showToast]);
+  }, [walletAddress, endorseInput, endorseReason, endorseCategory, showToast, addLookup, addInteraction]);
 
   const handleReport = useCallback(async (e: React.MouseEvent<HTMLButtonElement>) => {
     if (!walletAddress) return showToast("Connect wallet first", "error");
@@ -505,28 +518,31 @@ export default function ReputationDashboard({ walletAddress, onConnect, isConnec
     setIsReporting(true);
 
     try {
-      // Resolve input (supports both address and ID)
       showToast("Resolving wallet…", "info");
       const id = await resolveWalletInput(reportInput, walletAddress, showToast);
       if (id === null) { setIsReporting(false); return; }
 
-      // Verify target exists
       const rep = await viewWalletReputation(id, walletAddress) as unknown as Record<string, unknown>;
       if (!rep || !rep.is_active || Number(rep.wallet_id) === 0) {
         throw new Error(`Target wallet ID ${id} does not exist or is inactive.`);
       }
 
       showToast("Awaiting signature…", "info");
-      await reportWallet(walletAddress, id, reportReason.trim());
+      await reportWallet(walletAddress, id, reportReason.trim(), reportCategory);
       showToast("Report submitted on-chain! (−3 score)", "success");
+      
+      addLookup(reportInput, walletAddress);
+      addInteraction(id, walletAddress, reportInput.startsWith("G") ? `${reportInput.slice(0,6)}…` : String(id), "report");
+      
       setReportInput("");
       setReportReason("");
+      setReportCategory(0);
     } catch (err: unknown) {
       showToast(err instanceof Error ? err.message : "Report failed", "error");
     } finally {
       setIsReporting(false);
     }
-  }, [walletAddress, reportInput, reportReason, showToast]);
+  }, [walletAddress, reportInput, reportReason, reportCategory, showToast, addLookup, addInteraction]);
 
   // ── Tab config ─────────────────────────────────────────────
 
@@ -598,10 +614,27 @@ export default function ReputationDashboard({ walletAddress, onConnect, isConnec
                   onChange={(e) => setLookupInput(e.target.value)}
                   placeholder="e.g. GABC123... or 1"
                   type="text"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && lookupInput.trim()) {
+                      handleLookup();
+                    }
+                  }}
                 />
-                <p className="text-[10px] text-[var(--stone)]/60">
-                  Enter a Stellar address (starts with G) or a numeric wallet ID
-                </p>
+                {recentLookups.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-2 pt-2">
+                    <span className="text-[10px] text-[var(--stone)]">Recent:</span>
+                    {recentLookups.slice(0, 5).map((lookup, i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => setLookupInput(lookup.address || lookup.displayId)}
+                        className="text-[10px] px-2 py-1 rounded-full bg-[var(--parchment)] border border-[var(--faded-sage)] text-[var(--stone)] hover:bg-[var(--forest)]/5 hover:border-[var(--forest)]/30 hover:text-[var(--forest)] transition-all"
+                      >
+                        {lookup.displayId}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <button onClick={handleLookup} disabled={isLooking} className="btn-forest w-full cursor-pointer">
@@ -721,10 +754,26 @@ export default function ReputationDashboard({ walletAddress, onConnect, isConnec
                     placeholder="e.g. GABC123... or 1"
                     type="text"
                   />
-                  <p className="text-[10px] text-[var(--stone)]/60">
-                    Stellar address or numeric wallet ID
-                  </p>
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {recentLookups.filter(l => l.id !== "id" || l.address).slice(0, 4).map((lookup, i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => setEndorseInput(lookup.address || lookup.displayId)}
+                        className="text-[10px] px-2 py-1 rounded-full bg-[var(--parchment)] border border-[var(--faded-sage)] text-[var(--stone)] hover:bg-[var(--forest)]/5 hover:border-[var(--forest)]/30 hover:text-[var(--forest)] transition-all"
+                      >
+                        {lookup.displayId}
+                      </button>
+                    ))}
+                  </div>
                 </div>
+
+                <CategorySelect 
+                  value={endorseCategory} 
+                  onChange={(v) => setEndorseCategory(v as 0|1|2|3|4|5)} 
+                  label="Category"
+                  compact
+                />
 
                 <div className="space-y-2">
                   <label className="block text-[11px] font-semibold uppercase tracking-wider text-[var(--stone)]">
@@ -733,9 +782,11 @@ export default function ReputationDashboard({ walletAddress, onConnect, isConnec
                   <textarea
                     className="textarea-botanical"
                     value={endorseReason}
-                    onChange={(e) => setEndorseReason(e.target.value)}
+                    onChange={(e) => setEndorseReason(e.target.value.slice(0, MAX_REASON_LENGTH))}
                     placeholder="e.g. Delivered on a P2P trade promptly and honestly."
                   />
+                  <CharacterCounter value={endorseReason} max={MAX_REASON_LENGTH} />
+                  <ReasonTemplates type="endorse" onSelect={(r) => setEndorseReason(r)} />
                 </div>
               </div>
 
@@ -771,10 +822,26 @@ export default function ReputationDashboard({ walletAddress, onConnect, isConnec
                     placeholder="e.g. GABC123... or 2"
                     type="text"
                   />
-                  <p className="text-[10px] text-[var(--stone)]/60">
-                    Stellar address or numeric wallet ID
-                  </p>
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {recentLookups.filter(l => l.id !== "id" || l.address).slice(0, 4).map((lookup, i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => setReportInput(lookup.address || lookup.displayId)}
+                        className="text-[10px] px-2 py-1 rounded-full bg-[var(--parchment)] border border-[var(--faded-sage)] text-[var(--stone)] hover:bg-[var(--terra)]/5 hover:border-[var(--terra)]/30 hover:text-[var(--terra)] transition-all"
+                      >
+                        {lookup.displayId}
+                      </button>
+                    ))}
+                  </div>
                 </div>
+
+                <CategorySelect 
+                  value={reportCategory} 
+                  onChange={(v) => setReportCategory(v as 0|1|2|3|4|5)} 
+                  label="Category"
+                  compact
+                />
 
                 <div className="space-y-2">
                   <label className="block text-[11px] font-semibold uppercase tracking-wider text-[var(--stone)]">
@@ -783,9 +850,11 @@ export default function ReputationDashboard({ walletAddress, onConnect, isConnec
                   <textarea
                     className="textarea-botanical"
                     value={reportReason}
-                    onChange={(e) => setReportReason(e.target.value)}
+                    onChange={(e) => setReportReason(e.target.value.slice(0, MAX_REASON_LENGTH))}
                     placeholder="e.g. Failed to send funds after trade was agreed upon."
                   />
+                  <CharacterCounter value={reportReason} max={MAX_REASON_LENGTH} />
+                  <ReasonTemplates type="report" onSelect={(r) => setReportReason(r)} />
                 </div>
               </div>
 

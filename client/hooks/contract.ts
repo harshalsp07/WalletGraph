@@ -32,7 +32,7 @@ import {
 // ============================================================
 
 export const CONTRACT_ADDRESS =
-  "CDHR3VDMHNWYXAF6ZNJEVUQWOU6P7TP45OMWOYM3TLACOZOEOIPJOOSX";
+  "CCLAXR2PHK2A2Z743YSK46EA6EXQ4PQAHH5KB7AABPCBKMPXWEVRYH5C";
 
 export const NETWORK_PASSPHRASE = Networks.TESTNET;
 export const RPC_URL = "https://soroban-testnet.stellar.org";
@@ -611,36 +611,46 @@ export async function viewWalletHistory(walletId: number, caller?: string) {
 }
 
 /**
- * Endorse a wallet with a reason.
- * Caller address is passed for auth + self-endorsement guard.
+ * Endorse a wallet with a reason and category.
  * Returns: log_id (u64)
  */
 export async function endorseWallet(
   caller: string,
   targetWalletId: number,
-  reason: string
+  reason: string,
+  category: number = 0
 ) {
   return callContract(
     "endorse_wallet",
-    [toScValAddress(caller), toScValU64(targetWalletId), toScValString(reason)],
+    [
+      toScValAddress(caller),
+      toScValU64(targetWalletId),
+      toScValString(reason),
+      nativeToScVal(category, { type: "u32" })
+    ],
     caller,
     true
   );
 }
 
 /**
- * Report a wallet with a reason (-3 score, floor at -100).
- * Caller address is passed for auth + self-report guard.
+ * Report a wallet with a reason and category (-3 score).
  * Returns: log_id (u64)
  */
 export async function reportWallet(
   caller: string,
   targetWalletId: number,
-  reason: string
+  reason: string,
+  category: number = 0
 ) {
   return callContract(
     "report_wallet",
-    [toScValAddress(caller), toScValU64(targetWalletId), toScValString(reason)],
+    [
+      toScValAddress(caller),
+      toScValU64(targetWalletId),
+      toScValString(reason),
+      nativeToScVal(category, { type: "u32" })
+    ],
     caller,
     true
   );
@@ -681,4 +691,134 @@ export async function viewInteractionLog(
   );
 }
 
+// ----------------------------------------------------
+// Profiles & Avatar
+// ----------------------------------------------------
+
+export async function setWalletProfile(caller: string, name: string, bio: string) {
+  return callContract(
+    "set_wallet_profile",
+    [toScValAddress(caller), toScValString(name), toScValString(bio)],
+    caller,
+    true
+  );
+}
+
+export async function viewWalletProfile(walletId: number, caller?: string) {
+  return readContract("view_wallet_profile", [toScValU64(walletId)], caller);
+}
+
+export async function setProfileImage(caller: string, ipfsCid: string) {
+  return callContract(
+    "set_profile_image",
+    [toScValAddress(caller), toScValString(ipfsCid)],
+    caller,
+    true
+  );
+}
+
+export async function getProfileImage(walletId: number, caller?: string) {
+  return readContract("get_profile_image", [toScValU64(walletId)], caller);
+}
+
+export async function viewWalletTier(walletId: number, caller?: string) {
+  return readContract("view_wallet_tier", [toScValU64(walletId)], caller);
+}
+
+// ----------------------------------------------------
+// Certificate System
+// ----------------------------------------------------
+
+export async function registerIssuer(caller: string, name: string, description: string, logoUrl: string) {
+  return callContract(
+    "register_issuer",
+    [toScValAddress(caller), toScValString(name), toScValString(description), toScValString(logoUrl)],
+    caller,
+    true
+  );
+}
+
+export async function viewIssuer(issuerId: number, caller?: string) {
+  return readContract("view_issuer", [toScValU64(issuerId)], caller);
+}
+
+export async function getIssuerByAddress(address: string, caller?: string) {
+  return readContract("get_issuer_by_address", [toScValAddress(address)], caller);
+}
+
+export async function issueCertificate(
+  caller: string,
+  recipientId: number,
+  title: string,
+  description: string,
+  category: string,
+  imageUrl: string
+) {
+  return callContract(
+    "issue_certificate",
+    [
+      toScValAddress(caller),
+      toScValU64(recipientId),
+      toScValString(title),
+      toScValString(description),
+      toScValString(category),
+      toScValString(imageUrl),
+      nativeToScVal(Math.floor(Date.now() / 1000) + 365*24*60*60, { type: "u64" }) // expires in 1 year
+    ],
+    caller,
+    true
+  );
+}
+
+export async function verifyCertificate(certId: number, caller?: string) {
+  return readContract("verify_certificate", [toScValU64(certId)], caller);
+}
+
+export async function viewCertificate(certId: number, caller?: string) {
+  return readContract("view_certificate", [toScValU64(certId)], caller);
+}
+
+export async function viewWalletCertificates(walletId: number, caller?: string) {
+  return readContract("view_wallet_certificates", [toScValU64(walletId)], caller);
+}
+
+export async function viewIssuerCertificates(issuerId: number, caller?: string) {
+  return readContract("view_issuer_certificates", [toScValU64(issuerId)], caller);
+}
+
+export async function revokeCertificate(caller: string, certId: number) {
+  return callContract("revoke_certificate", [toScValAddress(caller), toScValU64(certId)], caller, true);
+}
+
+// ----------------------------------------------------
+// Dispute System
+// ----------------------------------------------------
+
+export async function openDispute(caller: string, logId: number, reason: string) {
+  return callContract(
+    "open_dispute",
+    [toScValAddress(caller), toScValU64(logId), toScValString(reason)],
+    caller,
+    true
+  );
+}
+
+export async function voteDispute(caller: string, disputeId: number, inFavor: boolean) {
+  return callContract(
+    "vote_dispute",
+    [toScValAddress(caller), toScValU64(disputeId), nativeToScVal(inFavor, { type: "bool" })],
+    caller,
+    true
+  );
+}
+
+export async function viewDispute(disputeId: number, caller?: string) {
+  return readContract("view_dispute", [toScValU64(disputeId)], caller);
+}
+
+export async function viewWalletDisputes(walletId: number, caller?: string) {
+  return readContract("view_wallet_disputes", [toScValU64(walletId)], caller);
+}
+
 export { nativeToScVal, scValToNative, Address, xdr };
+
