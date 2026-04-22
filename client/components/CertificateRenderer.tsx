@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import { Download, Share2 } from "lucide-react";
+import { Download, Share2, Award } from "lucide-react";
 import { format } from "date-fns";
 
 interface CertData {
@@ -10,8 +10,8 @@ interface CertData {
   description: string;
   category: string;
   image_url: string;
-  issue_date: number;
-  recipient_wallet: string; // The recipient wallet ID
+  issue_date: number; // Unix timestamp in seconds
+  recipient_wallet: string;
   issuer_name: string;
   issuer_logo: string;
 }
@@ -27,20 +27,15 @@ export default function CertificateRenderer({ data }: { data: CertData }) {
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
 
-      // Certificate dimensions (A4 Landscape at ~150 DPI)
       const w = 1754;
       const h = 1240;
       canvas.width = w;
       canvas.height = h;
 
-      // Load fonts using Web Font API if needed, but defaults work.
-      
-      // 1. Background
-      ctx.fillStyle = "#FFFAED"; // parchment color
+      ctx.fillStyle = "#FFFAED";
       ctx.fillRect(0, 0, w, h);
 
-      // 2. Botanical Borders
-      ctx.strokeStyle = "#4B6E48"; // forest color
+      ctx.strokeStyle = "#4B6E48";
       ctx.lineWidth = 12;
       ctx.strokeRect(40, 40, w - 80, h - 80);
       
@@ -48,9 +43,8 @@ export default function CertificateRenderer({ data }: { data: CertData }) {
       ctx.lineWidth = 4;
       ctx.strokeRect(60, 60, w - 120, h - 120);
 
-      // Watermark symbol
       ctx.font = "italic 400px serif";
-      ctx.fillStyle = "rgba(160, 82, 45, 0.03)"; // faint terra
+      ctx.fillStyle = "rgba(160, 82, 45, 0.03)";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       ctx.translate(w / 2, h / 2);
@@ -59,7 +53,6 @@ export default function CertificateRenderer({ data }: { data: CertData }) {
       ctx.rotate(Math.PI / 4);
       ctx.translate(-w / 2, -h / 2);
 
-      // Helper function to render images with proper CORS and fallbacks
       const renderImage = (src: string, dx: number, dy: number, dw: number, dh: number) => {
         return new Promise<void>((resolve) => {
           if (!src) return resolve();
@@ -69,20 +62,18 @@ export default function CertificateRenderer({ data }: { data: CertData }) {
             ctx.drawImage(img, dx, dy, dw, dh);
             resolve();
           };
-          img.onerror = () => resolve(); // Continue if image fails
-          img.src = src.startsWith("Qm") || src.startsWith("bafy") ? `https://gateway.pinata.cloud/ipfs/${src}` : src;
+          img.onerror = () => resolve();
+          img.src = src.startsWith("Qm") || src.startsWith("bafy") || src.startsWith("blob") 
+            ? src 
+            : src.includes("ipfs") ? src : `https://gateway.pinata.cloud/ipfs/${src}`;
         });
       };
 
-      // 3. Header Texts & Issuer Logo
-      
       let startY = 160;
       
-      // If we have an issuer logo, draw it
       if (data.issuer_logo) {
-        // Draw a subtle border for the logo
         ctx.fillStyle = "white";
-        ctx.strokeStyle = "#4B6E48"; // forest
+        ctx.strokeStyle = "#4B6E48";
         ctx.lineWidth = 2;
         ctx.beginPath();
         const logoSize = 140;
@@ -91,22 +82,21 @@ export default function CertificateRenderer({ data }: { data: CertData }) {
         ctx.stroke();
         
         await renderImage(data.issuer_logo, w / 2 - logoSize / 2 + 5, startY + 5, logoSize - 10, logoSize - 10);
-        startY += logoSize + 40; // Push text down
+        startY += logoSize + 40;
       }
       
-      ctx.fillStyle = "#1A1A18"; // dark-ink
+      ctx.fillStyle = "#1A1A18";
       ctx.textBaseline = "top";
       ctx.textAlign = "center";
       
       ctx.font = "bold 80px serif";
       ctx.fillText(data.issuer_name || "CERTIFICATE OF ACHIEVEMENT", w / 2, startY);
 
-      ctx.fillStyle = "#A0522D"; // terra
+      ctx.fillStyle = "#A0522D";
       ctx.font = "italic 36px sans-serif";
       ctx.fillText(`Certificate of ${data.category || "Excellence"}`, w / 2, startY + 100);
 
-      // 4. Recipient
-      ctx.fillStyle = "#5c5c56"; // stone
+      ctx.fillStyle = "#5c5c56";
       ctx.font = "30px sans-serif";
       ctx.fillText("This verifies that Wallet", w / 2, startY + 240);
 
@@ -118,16 +108,13 @@ export default function CertificateRenderer({ data }: { data: CertData }) {
       ctx.font = "30px sans-serif";
       ctx.fillText("has been successfully awarded", w / 2, startY + 380);
 
-      // 5. Title & Description
-      ctx.fillStyle = "#4B6E48"; // forest
+      ctx.fillStyle = "#4B6E48";
       ctx.font = "bold 70px serif";
       ctx.fillText(data.title, w / 2, startY + 470);
 
       ctx.fillStyle = "#1A1A18";
       ctx.font = "34px sans-serif";
       
-      // Wrap text
-      const maxWidth = -300;
       const wrapText = (text: string, x: number, y: number, maxW: number, lineHeight: number) => {
         const words = text.split(' ');
         let line = '';
@@ -151,17 +138,23 @@ export default function CertificateRenderer({ data }: { data: CertData }) {
       
       const descEndY = wrapText(data.description, w / 2, startY + 570, 1000, 48);
 
-      // 6. Footer (Date, On-Chain ID)
       ctx.fillStyle = "#5c5c56";
       ctx.font = "bold 24px monospace";
       ctx.textAlign = "left";
-      const dateStr = data.issue_date > 0 ? format(new Date(data.issue_date * 1000), "PPP") : "N/A";
+      
+      let dateStr = "N/A";
+      if (data.issue_date > 0) {
+        try {
+          dateStr = format(new Date(data.issue_date * 1000), "PPP");
+        } catch {
+          dateStr = "N/A";
+        }
+      }
       ctx.fillText(`ISSUED: ${dateStr}`, 140, h - 140);
       
       ctx.textAlign = "right";
       ctx.fillText(`ON-CHAIN ID: ${data.cert_id}`, w - 140, h - 140);
 
-      // 7. Render Custom Media/Image (if provided as part of certificate)
       if (data.image_url) {
         await renderImage(data.image_url, w / 2 - 100, descEndY + 80, 200, 200);
       }
@@ -171,6 +164,15 @@ export default function CertificateRenderer({ data }: { data: CertData }) {
 
     drawCertificate();
   }, [data]);
+
+  const formatDisplayDate = (timestamp: number) => {
+    if (!timestamp || timestamp === 0) return "N/A";
+    try {
+      return format(new Date(timestamp * 1000), "MMMM d, yyyy");
+    } catch {
+      return "N/A";
+    }
+  };
 
   return (
     <div className="w-full">
@@ -202,6 +204,13 @@ export default function CertificateRenderer({ data }: { data: CertData }) {
           <Share2 className="w-5 h-5" /> Copy Link
         </button>
       </div>
+
+      {data.issue_date > 0 && (
+        <p className="text-center text-sm text-[var(--stone)] mt-4 flex items-center justify-center gap-2">
+          <Award className="w-4 h-4" />
+          Issued on {formatDisplayDate(data.issue_date)}
+        </p>
+      )}
     </div>
   );
 }
