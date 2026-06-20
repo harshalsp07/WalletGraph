@@ -12,6 +12,7 @@ interface DockHeaderProps {
   onConnect: () => void;
   onDisconnect: () => void;
   isConnecting: boolean;
+  variant?: "light" | "dark";
 }
 
 export default function DockHeader({
@@ -20,8 +21,10 @@ export default function DockHeader({
   onConnect,
   onDisconnect: _onDisconnect,
   isConnecting,
+  variant = "light",
 }: DockHeaderProps) {
   void _onDisconnect;
+  const dark = variant === "dark";
   const pathname = usePathname();
   const [mounted, setMounted] = useState(false);
 
@@ -86,8 +89,8 @@ export default function DockHeader({
   return (
     <div className="fixed bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 z-50 animate-fade-in-up">
       <div
-        className="dock-container flex items-center px-2 sm:px-3 py-2 rounded-2xl border border-[var(--faded-sage)]/50 backdrop-blur-2xl shadow-[0_8px_32px_rgba(44,44,43,0.12),inset_0_1px_0_rgba(255,255,255,0.5)]"
-        style={{ background: "rgba(250, 249, 246, 0.9)" }}
+        className={`dock-container flex items-center px-2 sm:px-3 py-2 rounded-2xl border backdrop-blur-2xl shadow-[0_8px_32px_rgba(44,44,43,0.12),inset_0_1px_0_rgba(255,255,255,0.5)] ${dark ? "nc-dock-dark" : "border-[var(--faded-sage)]/50"}`}
+        style={{ background: dark ? undefined : "rgba(250, 249, 246, 0.9)" }}
       >
         {navItems.map((item) => {
           const active = isActive(item.path);
@@ -101,19 +104,23 @@ export default function DockHeader({
               href={item.path}
               className={`
                 dock-item relative flex flex-col items-center gap-0.5 sm:gap-1 px-2 sm:px-4 py-2 sm:py-2 rounded-xl min-w-[44px] sm:min-w-0
-                ${active ? "text-[var(--forest)]" : "text-[var(--stone)] hover:text-[var(--dark-ink)]"}
+                ${active
+                  ? dark ? "text-[var(--nc-emerald-bright)]" : "text-[var(--forest)]"
+                  : dark ? "text-[var(--nc-ink-dim)] hover:text-[var(--nc-ink)]" : "text-[var(--stone)] hover:text-[var(--dark-ink)]"}
               `}
               style={{
-                background: active ? "rgba(75, 110, 72, 0.1)" : "transparent",
+                background: active
+                  ? dark ? "rgba(79, 174, 114, 0.14)" : "rgba(75, 110, 72, 0.1)"
+                  : "transparent",
               }}
             >
               {active && (
                 <div
                   className="absolute inset-0 rounded-xl border"
-                  style={{ borderColor: "var(--forest)", opacity: 0.3 }}
+                  style={{ borderColor: dark ? "var(--nc-emerald)" : "var(--forest)", opacity: dark ? 0.5 : 0.3 }}
                 />
               )}
-              <span className={active ? "text-[var(--forest)]" : ""}>{item.icon}</span>
+              <span className={active ? (dark ? "text-[var(--nc-emerald-bright)]" : "text-[var(--forest)]") : ""}>{item.icon}</span>
               <span
                 className="text-[10px] font-medium whitespace-nowrap"
                 style={{ fontFamily: "var(--font-sans)" }}
@@ -128,7 +135,7 @@ export default function DockHeader({
           <button
             onClick={onConnect}
             disabled={isConnecting}
-            className="dock-item flex flex-col items-center gap-0.5 sm:gap-1 px-2 sm:px-4 py-2 rounded-xl min-w-[44px] sm:min-w-0 text-[var(--forest)] hover:bg-[var(--forest)]/5 cursor-pointer"
+            className={`dock-item flex flex-col items-center gap-0.5 sm:gap-1 px-2 sm:px-4 py-2 rounded-xl min-w-[44px] sm:min-w-0 cursor-pointer ${dark ? "text-[var(--nc-emerald-bright)] hover:bg-[var(--nc-emerald)]/10" : "text-[var(--forest)] hover:bg-[var(--forest)]/5"}`}
           >
             {isConnecting ? (
               <svg className="animate-spin" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -148,20 +155,20 @@ export default function DockHeader({
         )}
 
         {walletAddress && (
-          <div className="flex items-center gap-2 px-3 py-2 rounded-xl border-l border-[var(--faded-sage)]/50 ml-2">
+          <div className={`flex items-center gap-2 px-3 py-2 rounded-xl border-l ml-2 ${dark ? "border-[var(--nc-line)]" : "border-[var(--faded-sage)]/50"}`}>
             <div className="h-6 w-6 rounded-full bg-gradient-to-br from-[var(--forest)] to-[var(--moss)] p-[2px]">
-              <div className="flex h-full w-full items-center justify-center rounded-full bg-[var(--warm-cream)]">
-                <span className="text-[8px] font-bold text-[var(--dark-ink)] font-mono-data">
+              <div className={`flex h-full w-full items-center justify-center rounded-full ${dark ? "bg-[var(--nc-bg-1)]" : "bg-[var(--warm-cream)]"}`}>
+                <span className={`text-[8px] font-bold font-mono-data ${dark ? "text-[var(--nc-emerald-bright)]" : "text-[var(--dark-ink)]"}`}>
                   {walletAddress.slice(0, 2)}
                 </span>
               </div>
             </div>
             <div className="hidden sm:flex sm:flex-col sm:gap-0.5">
-              <span className="text-xs font-mono-data text-[var(--dark-ink)]/60">
+              <span className={`text-xs font-mono-data ${dark ? "text-[var(--nc-ink-soft)]" : "text-[var(--dark-ink)]/60"}`}>
                 {truncate(walletAddress)}
               </span>
               {providerOption && (
-                <span className="text-[9px] uppercase tracking-[0.16em] text-[var(--stone)]">
+                <span className={`text-[9px] uppercase tracking-[0.16em] ${dark ? "text-[var(--nc-ink-dim)]" : "text-[var(--stone)]"}`}>
                   {providerOption.name}
                 </span>
               )}
