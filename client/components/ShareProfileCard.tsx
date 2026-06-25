@@ -48,7 +48,6 @@ function ExternalLinkIcon() {
 
 export default function ShareProfileCard({
   walletId,
-  walletAddress,
   score,
   endorsements,
   variant = "full",

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { X, Upload, Check, Link2, Globe, Hash, User, Image, Loader2, AlertCircle, Maximize2, Trash2, Camera, Sparkles } from "lucide-react";
+import { X, Check, Link2, Globe, Hash, User, Image, Loader2, AlertCircle, Maximize2, Trash2, Camera, Sparkles } from "lucide-react";
 import { setWalletProfile, setProfileImage, viewWalletProfile, getProfileImage, checkConnection, getWalletAddress, getWalletIdByAddress } from "@/hooks/contract";
 import { useToast } from "@/context/ToastContext";
 
@@ -104,6 +104,7 @@ export default function EditProfileModal({ walletAddress, onClose, onSuccess }: 
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasUnsavedChanges]);
 
   const validateFile = (file: File): string | null => {
@@ -142,6 +143,7 @@ export default function EditProfileModal({ walletAddress, onClose, onSuccess }: 
     if (droppedFile) {
       handleFileProcess(droppedFile);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -252,7 +254,7 @@ export default function EditProfileModal({ walletAddress, onClose, onSuccess }: 
         showToast("Avatar removed", "success");
       }
       
-      let socialParts: string[] = [];
+      const socialParts: string[] = [];
       if (twitter) socialParts.push("Twitter: " + twitter.replace('@', ''));
       if (website) socialParts.push("Web: " + website);
       if (github) socialParts.push("GitHub: " + github);

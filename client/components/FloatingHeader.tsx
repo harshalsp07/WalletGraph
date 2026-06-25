@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { NETWORK, checkConnection, getWalletAddress } from "@/hooks/contract";
 import { BrandMarkIcon } from "@/components/BrandMark";
-import { User, Settings } from "lucide-react";
+import { Settings } from "lucide-react";
 
 export default function FloatingHeader({ variant = "light" }: { variant?: "light" | "dark" }) {
   const dark = variant === "dark";

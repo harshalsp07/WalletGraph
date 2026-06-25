@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Leaf, Award, Shield, AlertTriangle, ShieldAlert, Star } from "lucide-react";
+import { Leaf, Award, Shield, AlertTriangle, Star } from "lucide-react";
 
 export type TierStatus = 0 | 1 | 2 | 3 | 4 | 5;
 

@@ -651,7 +651,7 @@ export default function WalletProfileCard({ walletIdOrAddress }: Props) {
     } finally {
       setIsSubmitting(false);
     }
-  }, [isConnected, walletAddress, reputation, actionTab, actionReason, router, showToast]);
+  }, [isConnected, walletAddress, reputation, actionTab, actionReason, actionCategory, router, showToast]);
 
   const truncate = (addr: string) => addr.length > 20 ? `${addr.slice(0, 8)}…${addr.slice(-6)}` : addr;
 
@@ -753,7 +753,7 @@ export default function WalletProfileCard({ walletIdOrAddress }: Props) {
               
               {bio && (
                 <p className="text-sm text-[var(--stone)] mb-3 leading-relaxed italic">
-                  "{bio}"
+                  &quot;{bio}&quot;
                 </p>
               )}
               

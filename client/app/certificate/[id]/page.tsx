@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import FloatingHeader from "@/components/FloatingHeader";
 import { viewCertificate, viewIssuer } from "@/hooks/contract";
 import CertificateRenderer from "@/components/CertificateRenderer";
-import { XCircle, CheckCircle2, Calendar, Wallet, Building2, Clock, ShieldCheck, AlertTriangle } from "lucide-react";
+import { XCircle, Calendar, Wallet, Building2, Clock, ShieldCheck, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
 
 interface CertData {
@@ -27,6 +27,25 @@ interface IssuerData {
   description: string;
 }
 
+interface RawCert {
+  cert_id?: string | number | bigint;
+  issuer_id?: string | number | bigint;
+  recipient_wallet_id?: string | number | bigint;
+  title?: string;
+  description?: string;
+  category?: string;
+  image_cid?: string;
+  issued_at?: string | number | bigint;
+  expires_at?: string | number | bigint;
+  is_revoked?: boolean;
+}
+
+interface RawIssuer {
+  name?: string;
+  logo_url?: string;
+  description?: string;
+}
+
 export default function CertificateVerification() {
   const params = useParams();
   const certId = Number(params.id);
@@ -41,7 +60,7 @@ export default function CertificateVerification() {
       try {
         if (!certId || isNaN(certId)) throw new Error("Invalid Certificate ID");
         
-        const cert = await viewCertificate(certId) as any;
+        const cert = await viewCertificate(certId) as RawCert;
         if (!cert) throw new Error("Certificate not found on-chain");
 
         const parsedCert: CertData = {
@@ -61,7 +80,7 @@ export default function CertificateVerification() {
 
         const issuerId = Number(parsedCert.issuer_id);
         if (issuerId > 0) {
-          const issuer = await viewIssuer(issuerId) as any;
+          const issuer = await viewIssuer(issuerId) as RawIssuer;
           if (issuer) {
             setIssuerData({
               name: String(issuer.name || "Unknown Issuer"),
@@ -71,8 +90,9 @@ export default function CertificateVerification() {
           }
         }
 
-      } catch (err: any) {
-        setError(err.message || "Failed to load certificate");
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "Failed to load certificate";
+        setError(msg);
       } finally {
         setLoading(false);
       }

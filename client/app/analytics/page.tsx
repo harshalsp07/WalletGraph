@@ -5,8 +5,15 @@ import FloatingHeader from "@/components/FloatingHeader";
 import { viewGlobalStats } from "@/hooks/contract";
 import { LineChart, Users, ThumbsUp, Flag, Activity } from "lucide-react";
 
+interface GlobalStats {
+  total_wallets: number | bigint;
+  total_endorsements: number | bigint;
+  total_reports: number | bigint;
+  total_score?: number | bigint;
+}
+
 export default function AnalyticsPage() {
-  const [stats, setStats] = useState<any>(null);
+  const [stats, setStats] = useState<GlobalStats | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {

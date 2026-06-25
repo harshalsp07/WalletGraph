@@ -36,6 +36,26 @@ interface DisputeRecord {
   is_resolved: boolean;
 }
 
+interface RawDispute {
+  dispute_id?: string | number | bigint;
+  target_log_id?: string | number | bigint;
+  initiator_wallet_id?: string | number | bigint;
+  reason?: string;
+  votes_for?: string | number | bigint;
+  votes_against?: string | number | bigint;
+  is_resolved?: boolean;
+}
+
+interface RawInteraction {
+  log_id?: string | number | bigint;
+  caller_wallet_id?: string | number | bigint;
+  target_wallet_id?: string | number | bigint;
+  is_endorsement?: boolean;
+  reason?: string;
+  category?: number;
+  timestamp?: string | number | bigint;
+}
+
 export default function DisputesPage() {
   const { showToast } = useToast();
   const [address, setAddress] = useState<string | null>(null);
@@ -94,7 +114,7 @@ export default function DisputesPage() {
     try {
       const data = await viewWalletDisputes(id);
       if (data && Array.isArray(data)) {
-        const parsed = data.map((d: any) => ({
+        const parsed = data.map((d: RawDispute) => ({
           dispute_id: Number(d.dispute_id),
           target_log_id: Number(d.target_log_id),
           initiator_wallet_id: Number(d.initiator_wallet_id),
@@ -123,7 +143,7 @@ export default function DisputesPage() {
       ]);
       
       if (logsResult && Array.isArray(logsResult)) {
-        const parsed = logsResult.map((h: any) => ({
+        const parsed = logsResult.map((h: RawInteraction) => ({
           log_id: Number(h.log_id),
           caller_wallet_id: Number(h.caller_wallet_id),
           target_wallet_id: Number(h.target_wallet_id),
@@ -178,8 +198,9 @@ export default function DisputesPage() {
          setInteractionLogs([]);
          setLoading(false);
        }
-    } catch (e: any) {
-       showToast(e.message, "error");
+    } catch (err) {
+       const msg = err instanceof Error ? err.message : "Search failed";
+       showToast(msg, "error");
        setLoading(false);
     }
   };
@@ -210,8 +231,9 @@ export default function DisputesPage() {
       showToast("Dispute opened on-chain!", "success");
       setOpenDisputeForm({ logId: "", reason: "" });
       if (walletId > 0) loadDisputes(walletId);
-    } catch (e: any) {
-      showToast(e.message || "Failed to open dispute", "error");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to open dispute";
+      showToast(msg, "error");
     } finally {
       setOpening(false);
     }
@@ -225,8 +247,9 @@ export default function DisputesPage() {
       showToast("Vote cast successfully!", "success");
       // refresh if possible
       if (walletId > 0) loadDisputes(walletId);
-    } catch (e: any) {
-      showToast(e.message || "Failed to cast vote", "error");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to cast vote";
+      showToast(msg, "error");
     }
   };
 
@@ -305,7 +328,7 @@ export default function DisputesPage() {
                 {viewTab === "reports" && address && myWalletId === walletId && (
                   <div className="text-right">
                     <p className="text-xs text-[var(--stone)] mb-1">These are reports against YOU</p>
-                    <p className="text-xs text-[var(--amber-sap)]">Click "Challenge" to dispute</p>
+                    <p className="text-xs text-[var(--amber-sap)]">Click &quot;Challenge&quot; to dispute</p>
                   </div>
                 )}
               </div>
@@ -348,7 +371,7 @@ export default function DisputesPage() {
                        </div>
                        
                        <div className={`p-4 rounded-xl border mb-6 relative ${d.is_resolved ? 'bg-white/40 border-[var(--faded-sage)]' : 'bg-[var(--parchment)] border-[var(--faded-sage)]/60'}`}>
-                         <div className="absolute -top-3 -left-2 text-4xl text-[var(--faded-sage)] opacity-50 font-serif font-bold">"</div>
+                         <div className="absolute -top-3 -left-2 text-4xl text-[var(--faded-sage)] opacity-50 font-serif font-bold">&quot;</div>
                          <p className="text-sm text-[var(--dark-ink)] leading-relaxed relative z-10 font-medium pl-2 pr-2">
                            {d.reason}
                          </p>
@@ -410,7 +433,7 @@ export default function DisputesPage() {
                          </div>
                        </div>
                        
-                       <p className="text-sm text-[var(--dark-ink)] mb-3">"{log.reason}"</p>
+                       <p className="text-sm text-[var(--dark-ink)] mb-3">&quot;{log.reason}&quot;</p>
                        
                        <div className="flex items-center justify-between pt-3 border-t border-[var(--faded-sage)]">
                          <div className="text-xs text-[var(--stone)]">

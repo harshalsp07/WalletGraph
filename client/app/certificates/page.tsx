@@ -13,7 +13,6 @@ import {
   viewIssuerCertificates
 } from "@/hooks/contract";
 import { ShieldCheck, Award, Upload, CheckCircle2 } from "lucide-react";
-import Image from "next/image";
 import Link from "next/link";
 import { useToast } from "@/context/ToastContext";
 
@@ -24,6 +23,14 @@ interface IssuerRecord {
   logo_url: string;
   is_verified: boolean;
   total_issued: number;
+}
+
+interface RawIssuer {
+  name?: string;
+  logo_url?: string;
+  description?: string;
+  is_verified?: boolean;
+  total_issued?: string | number | bigint;
 }
 
 export default function CertificatesHub() {
@@ -87,7 +94,7 @@ export default function CertificatesHub() {
             const iid = typeof issuerIdRaw === 'bigint' ? Number(issuerIdRaw) : Number(issuerIdRaw?.value || 0);
 
             if (iid > 0) {
-              const issuerData = await viewIssuer(iid) as any;
+              const issuerData = await viewIssuer(iid) as RawIssuer;
               setIssuer({
                 issuer_id: iid,
                 name: String(issuerData.name || ""),
@@ -123,8 +130,9 @@ export default function CertificatesHub() {
       await registerIssuer(address, regForm.name, regForm.description, finalLogoUrl);
       showToast("Registered successfully!", "success");
       setTimeout(() => window.location.reload(), 1500);
-    } catch (e: any) {
-      showToast(e.message || "Registration failed", "error");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Registration failed";
+      showToast(msg, "error");
     } finally {
       setRegistering(false);
     }
@@ -155,8 +163,9 @@ export default function CertificatesHub() {
 
       showToast("Certificate issued on-chain!", "success");
       setIssueForm({ recipientAddress: "", title: "", description: "", category: "", imageUrl: "" });
-    } catch (e: any) {
-      showToast(e.message || "Failed to issue certificate", "error");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to issue certificate";
+      showToast(msg, "error");
     } finally {
       setIssuing(false);
     }
@@ -370,8 +379,14 @@ export default function CertificatesHub() {
   );
 }
 
+interface CertRecord {
+  cert_id?: string | number | bigint;
+  recipient_wallet_id?: string | number | bigint;
+  title?: string;
+}
+
 function HistoryTab({ issuerId }: { issuerId: number }) {
-  const [certs, setCerts] = useState<any[]>([]);
+  const [certs, setCerts] = useState<CertRecord[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -394,12 +409,12 @@ function HistoryTab({ issuerId }: { issuerId: number }) {
   }
 
   if (certs.length === 0) {
-    return <div className="text-center py-10 text-[var(--stone)] text-sm">You haven't issued any certificates yet.</div>;
+    return <div className="text-center py-10 text-[var(--stone)] text-sm">You haven&apos;t issued any certificates yet.</div>;
   }
 
   return (
     <div className="space-y-4">
-      {certs.map((c: any, i) => (
+      {certs.map((c, i) => (
         <div key={i} className="flex flex-col sm:flex-row items-center sm:justify-between p-4 bg-white border border-[var(--faded-sage)] rounded-2xl gap-4">
           <div className="flex-1 text-center sm:text-left">
             <h4 className="font-bold text-[var(--dark-ink)] font-heading">{c.title || "Certificate"}</h4>

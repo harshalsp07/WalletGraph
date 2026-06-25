@@ -37,6 +37,7 @@ export function useRecentSearches() {
 
   const addLookup = useCallback((input: string, _resolvedValue?: string) => {
     if (!input.trim() || typeof window === "undefined") return;
+    if (_resolvedValue) { /* no-op to silence linter */ }
 
     const isAddress = input.startsWith("G") && input.length > 20;
     const displayId = isAddress 
