@@ -10,7 +10,7 @@ fn setup_env() -> (Env, Address) {
     (env, admin)
 }
 
-fn register_contract(env: &Env, admin: &Address) -> WalletReputationGraphClient {
+fn register_contract<'a>(env: &'a Env, admin: &Address) -> WalletReputationGraphClient<'a> {
     let contract_id = env.register(WalletReputationGraph, ());
     let client = WalletReputationGraphClient::new(env, &contract_id);
     client.initialize(admin);

@@ -27,10 +27,6 @@ import {
   requestAccess,
 } from "@stellar/freighter-api";
 
-// ============================================================
-// CONSTANTS
-// ============================================================
-
 export const CONTRACT_ADDRESS =
   "CCLAXR2PHK2A2Z743YSK46EA6EXQ4PQAHH5KB7AABPCBKMPXWEVRYH5C";
 
@@ -38,10 +34,6 @@ export const NETWORK_PASSPHRASE = Networks.TESTNET;
 export const RPC_URL = "https://soroban-testnet.stellar.org";
 export const HORIZON_URL = "https://horizon-testnet.stellar.org";
 export const NETWORK = "TESTNET";
-
-// ============================================================
-// Error Codes (must match contracterror in lib.rs)
-// ============================================================
 
 const CONTRACT_ERRORS: Record<number, string> = {
   1: "The target wallet does not exist or is inactive.",
@@ -52,10 +44,6 @@ const CONTRACT_ERRORS: Record<number, string> = {
   6: "This wallet is already deactivated.",
   7: "The reason cannot be empty.",
 };
-
-// ============================================================
-// RPC Server
-// ============================================================
 
 const server = new rpc.Server(RPC_URL);
 const horizonServer = new Horizon.Server(HORIZON_URL);
@@ -183,10 +171,6 @@ export function getWalletProviderStatus(provider: WalletProvider): WalletProvide
     message: "LOBSTR login is planned, but browser-based auth is not available yet.",
   };
 }
-
-// ============================================================
-// Wallet Helpers
-// ============================================================
 
 export async function checkConnection(provider: WalletProvider = getActiveWalletProvider()): Promise<boolean> {
   if (provider === "freighter") {
@@ -454,12 +438,8 @@ export async function sendXlmTransaction(params: {
   };
 }
 
-// ============================================================
-// Contract Interaction Helpers
-// ============================================================
-
 function parseContractError(errorMsg: string): string {
-  // Try to extract error code from Soroban error messages
+
   const codeMatch = errorMsg.match(/Error\(Contract, #(\d+)\)/);
   if (codeMatch) {
     const code = parseInt(codeMatch[1]);
@@ -551,10 +531,6 @@ export async function readContract(
   return null;
 }
 
-// ============================================================
-// ScVal Helpers
-// ============================================================
-
 export function toScValString(value: string): xdr.ScVal {
   return nativeToScVal(value, { type: "string" });
 }
@@ -567,15 +543,6 @@ export function toScValAddress(address: string): xdr.ScVal {
   return new Address(address).toScVal();
 }
 
-// ============================================================
-// Wallet Reputation Graph — Contract Methods
-// ============================================================
-
-/**
- * Register a new wallet identity (or return existing ID).
- * Caller's address is used for auth.
- * Returns: wallet_id (u64)
- */
 export async function registerWallet(caller: string) {
   return callContract(
     "register_wallet",
@@ -585,11 +552,6 @@ export async function registerWallet(caller: string) {
   );
 }
 
-/**
- * Get wallet ID by wallet address (read-only).
- * Uses Address type now.
- * Returns: wallet_id (u64) or 0 if not registered
- */
 export async function getWalletIdByAddress(address: string, caller?: string) {
   return readContract(
     "get_wallet_id_by_address",
@@ -598,10 +560,6 @@ export async function getWalletIdByAddress(address: string, caller?: string) {
   );
 }
 
-/**
- * View all interaction history for a wallet (read-only).
- * Returns: Vec<InteractionLog>
- */
 export async function viewWalletHistory(walletId: number, caller?: string) {
   return readContract(
     "view_wallet_history",
@@ -610,10 +568,6 @@ export async function viewWalletHistory(walletId: number, caller?: string) {
   );
 }
 
-/**
- * Endorse a wallet with a reason and category.
- * Returns: log_id (u64)
- */
 export async function endorseWallet(
   caller: string,
   targetWalletId: number,
@@ -633,10 +587,6 @@ export async function endorseWallet(
   );
 }
 
-/**
- * Report a wallet with a reason and category (-3 score).
- * Returns: log_id (u64)
- */
 export async function reportWallet(
   caller: string,
   targetWalletId: number,
@@ -656,9 +606,6 @@ export async function reportWallet(
   );
 }
 
-/**
- * View a wallet's reputation record (read-only).
- */
 export async function viewWalletReputation(
   walletId: number,
   caller?: string
@@ -670,16 +617,10 @@ export async function viewWalletReputation(
   );
 }
 
-/**
- * View platform-wide global stats (read-only).
- */
 export async function viewGlobalStats(caller?: string) {
   return readContract("view_global_stats", [], caller);
 }
 
-/**
- * View a single interaction log entry (read-only).
- */
 export async function viewInteractionLog(
   logId: number,
   caller?: string
@@ -690,10 +631,6 @@ export async function viewInteractionLog(
     caller
   );
 }
-
-// ----------------------------------------------------
-// Profiles & Avatar
-// ----------------------------------------------------
 
 export async function setWalletProfile(caller: string, name: string, bio: string) {
   return callContract(
@@ -724,10 +661,6 @@ export async function getProfileImage(walletId: number, caller?: string) {
 export async function viewWalletTier(walletId: number, caller?: string) {
   return readContract("view_wallet_tier", [toScValU64(walletId)], caller);
 }
-
-// ----------------------------------------------------
-// Certificate System
-// ----------------------------------------------------
 
 export async function registerIssuer(caller: string, name: string, description: string, logoUrl: string) {
   return callContract(
@@ -763,7 +696,7 @@ export async function issueCertificate(
       toScValString(description),
       toScValString(category),
       toScValString(imageUrl),
-      nativeToScVal(Math.floor(Date.now() / 1000) + 365*24*60*60, { type: "u64" }) // expires in 1 year
+      nativeToScVal(Math.floor(Date.now() / 1000) + 365*24*60*60, { type: "u64" }) 
     ],
     caller,
     true
@@ -789,10 +722,6 @@ export async function viewIssuerCertificates(issuerId: number, caller?: string) 
 export async function revokeCertificate(caller: string, certId: number) {
   return callContract("revoke_certificate", [toScValAddress(caller), toScValU64(certId)], caller, true);
 }
-
-// ----------------------------------------------------
-// Dispute System
-// ----------------------------------------------------
 
 export async function openDispute(caller: string, logId: number, reason: string) {
   return callContract(
@@ -821,4 +750,3 @@ export async function viewWalletDisputes(walletId: number, caller?: string) {
 }
 
 export { nativeToScVal, scValToNative, Address, xdr };
-
